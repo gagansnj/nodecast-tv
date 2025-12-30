@@ -182,6 +182,60 @@ location / {
 }
 ```
 
+### IPTV Middleware (m3u-editor, dispatcharr, Threadfin, etc.)
+
+If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfin**, or **xTeVe** to manage your streams, you may need to adjust NodeCast TV settings for optimal playback. These tools typically use passthrough mode, which preserves original codecs (like HEVC/Dolby) that most browsers cannot decode natively, and may also trigger CORS restrictions.
+
+**Recommended Settings in NodeCast TV:**
+
+| Setting | Location | When to Enable |
+|---------|----------|----------------|
+| **Force Backend Proxy** | Settings → Player → Streaming | Always recommended when using middleware |
+| **Force Audio Transcode** | Settings → Player → Streaming | If you have no audio (Dolby/AC3/EAC3 streams) |
+| **Stream Format: TS** | Settings → Streaming | If HLS streams buffer excessively |
+
+---
+
+#### m3u-editor (sparkison/m3u-editor)
+
+m3u-editor includes an internal proxy that remuxes streams to MPEG-TS. 
+
+**Setup:**
+1. In m3u-editor, configure your playlist and enable the proxy if needed
+2. In NodeCast TV, enable **"Force Backend Proxy"** in Settings → Streaming
+3. If audio doesn't play, enable **"Force Audio Transcode"**
+
+**Note:** m3u-editor's proxy preserves original codecs. If your source has HEVC or Dolby, you'll need transcoding or a compatible browser (Safari).
+
+---
+
+#### dispatcharr
+
+dispatcharr uses FFmpeg stream profiles to process streams. By default it outputs MPEG-TS with passthrough codecs.
+
+**Setup:**
+1. In dispatcharr, streams are proxied by default via stream profiles
+2. In NodeCast TV, enable **"Force Backend Proxy"** in Settings → Streaming
+3. If audio doesn't play, enable **"Force Audio Transcode"**
+
+**Custom dispatcharr profile for browser compatibility:**
+If you want dispatcharr to transcode audio for you instead of NodeCast TV:
+```
+-user_agent {userAgent} -i {streamUrl} -c:v copy -c:a aac -f mpegts pipe:1
+```
+This keeps video passthrough but converts audio to AAC.
+
+---
+
+#### Threadfin / xTeVe
+
+These HDHomeRun emulators work similarly to other middleware.
+
+**Setup:**
+1. Add your Threadfin/xTeVe M3U URL as an M3U source in NodeCast TV
+2. Enable **"Force Backend Proxy"** in Settings → Streaming
+3. If needed, enable **"Force Audio Transcode"**
+
 ### TVHeadend
 
 If you're using TVHeadend as your source, you may need to configure a few settings for streams to play correctly in NodeCast TV:
