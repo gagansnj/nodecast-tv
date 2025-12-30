@@ -302,7 +302,7 @@ class VideoPlayer {
                             // Buffer stalled - seek forward to unstick
                             console.log('[HLS] Buffer stalled, seeking to recover...');
                             if (!this.video.paused && this.video.currentTime > 0) {
-                                this.video.currentTime += 0.5;
+                                this.video.currentTime += 1;
                             }
                         }
                     }
@@ -323,7 +323,7 @@ class VideoPlayer {
                             if (!wasFirstDetection && !this.video.paused && this.video.currentTime > 0) {
                                 // Seek forward slightly to skip past any corrupted audio frames
                                 console.log('[HLS] Seeking past discontinuity boundary');
-                                this.video.currentTime += 0.5;
+                                this.video.currentTime += 1;
                             }
                         }
                     }

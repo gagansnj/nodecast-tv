@@ -31,9 +31,8 @@ router.get('/', (req, res) => {
         '-c:v', 'copy',
         // Audio: Transcode to browser-compatible AAC with consistent parameters
         '-c:a', 'aac',
-        '-ac', '2',
         '-ar', '48000',
-        '-b:a', '128k',
+        '-b:a', '256k', // Increased for surround sound
         '-af', 'aresample=48000:async=1',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
