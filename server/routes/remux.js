@@ -1,0 +1,87 @@
+const express = require('express');
+const router = express.Router();
+const { spawn } = require('child_process');
+
+/**
+ * Remux stream (container conversion only)
+ * GET /api/remux?url=...
+ * 
+ * Remuxes MPEG-TS to fragmented MP4 for browser playback.
+ * This is a lightweight operation - no video/audio re-encoding.
+ * Use this for raw .ts streams that browsers can't play directly.
+ * 
+ * Note: This does NOT fix Dolby/AC3 audio issues - use /api/transcode for that.
+ */
+router.get('/', (req, res) => {
+    const { url } = req.query;
+    if (!url) {
+        return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    const ffmpegPath = req.app.locals.ffmpegPath || 'ffmpeg';
+    console.log(`[Remux] Starting remux for: ${url}`);
+
+    // FFmpeg arguments for pure remux (no encoding)
+    // Very lightweight - just changes container from TS to fragmented MP4
+    const args = [
+        '-hide_banner',
+        '-loglevel', 'warning',
+        '-fflags', '+genpts+discardcorrupt',
+        '-i', url,
+        // Copy ALL streams without re-encoding
+        '-c', 'copy',
+        // Fragmented MP4 for streaming (browser-compatible)
+        '-f', 'mp4',
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+        '-' // Output to stdout
+    ];
+
+    console.log(`[Remux] Full command: ${ffmpegPath} ${args.join(' ')}`);
+
+    let ffmpeg;
+    try {
+        ffmpeg = spawn(ffmpegPath, args);
+    } catch (spawnErr) {
+        console.error('[Remux] Failed to spawn FFmpeg:', spawnErr);
+        return res.status(500).json({ error: 'FFmpeg spawn failed', details: spawnErr.message });
+    }
+
+    // Set headers for fragmented MP4
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Pipe stdout to response
+    ffmpeg.stdout.pipe(res);
+
+    // Log stderr (useful for debugging)
+    ffmpeg.stderr.on('data', (data) => {
+        const msg = data.toString();
+        // Only log warnings/errors, not progress
+        if (msg.includes('Warning') || msg.includes('Error') || msg.includes('error')) {
+            console.log(`[Remux FFmpeg] ${msg}`);
+        }
+    });
+
+    // Cleanup on client disconnect
+    req.on('close', () => {
+        console.log('[Remux] Client disconnected, killing FFmpeg process');
+        ffmpeg.kill('SIGKILL');
+    });
+
+    // Handle process exit
+    ffmpeg.on('exit', (code) => {
+        if (code !== null && code !== 0 && code !== 255) {
+            console.error(`[Remux] FFmpeg exited with code ${code}`);
+        }
+    });
+
+    // Handle spawn errors
+    ffmpeg.on('error', (err) => {
+        console.error('[Remux] Failed to spawn FFmpeg:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Remux failed to start' });
+        }
+    });
+});
+
+module.exports = router;

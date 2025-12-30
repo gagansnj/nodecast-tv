@@ -34,7 +34,8 @@ class VideoPlayer {
             lastVolume: 80, // Last used volume (if rememberVolume is true)
             autoPlayNextEpisode: false, // Auto-play next episode in series
             forceProxy: false, // Force all streams through backend proxy
-            forceTranscode: false // Force audio transcoding (fixes Dolby/AC3 audio)
+            forceTranscode: false, // Force audio transcoding (fixes Dolby/AC3 audio)
+            forceRemux: false // Force remux to MP4 (fixes raw .ts streams, lightweight)
         };
         try {
             const saved = localStorage.getItem('nodecast_tv_player_settings');
@@ -263,9 +264,40 @@ class VideoPlayer {
             const finalUrl = needsProxy ? this.getProxiedUrl(streamUrl) : streamUrl;
 
             // Detect if this is likely an HLS stream (vs direct video file like MP4)
+            // Note: .ts files are raw MPEG-TS, NOT HLS manifests - exclude them
             const looksLikeHls = finalUrl.includes('.m3u8') ||
                 finalUrl.includes('m3u8') ||
-                (!finalUrl.includes('.mp4') && !finalUrl.includes('.mkv') && !finalUrl.includes('.avi'));
+                (!finalUrl.includes('.mp4') && !finalUrl.includes('.mkv') &&
+                    !finalUrl.includes('.avi') && !finalUrl.includes('.ts'));
+
+            // Check for raw TS streams that browsers can't play directly
+            const isRawTs = finalUrl.includes('.ts') && !finalUrl.includes('.m3u8');
+            if (isRawTs) {
+                // If Force Remux is enabled, route through remux endpoint
+                if (this.settings.forceRemux) {
+                    console.log('[Player] Raw TS stream detected. Using remux to convert to MP4...');
+                    const remuxUrl = this.getRemuxUrl(streamUrl);
+                    this.video.src = remuxUrl;
+                    this.video.play().catch(e => console.log('[Player] Autoplay prevented:', e));
+
+                    // Update UI and dispatch events
+                    this.updateNowPlaying(channel);
+                    this.showNowPlayingOverlay();
+                    this.fetchEpgData(channel);
+                    window.dispatchEvent(new CustomEvent('channelChanged', { detail: channel }));
+                    return;
+                }
+
+                console.warn('[Player] Raw MPEG-TS stream detected. Browsers cannot play .ts files directly.');
+                this.showError(
+                    'This stream uses raw MPEG-TS format (.ts) which browsers cannot play directly.<br><br>' +
+                    '<strong>To fix this:</strong><br>' +
+                    '1. Enable <strong>"Force Remux"</strong> in Settings → Streaming (lightweight)<br>' +
+                    '2. Or enable <strong>"Force Audio Transcode"</strong> if you also have audio issues<br>' +
+                    '3. Or configure your source to output HLS (.m3u8) format'
+                );
+                return;
+            }
 
             // Priority 1: Use HLS.js for HLS streams on browsers that support it
             if (looksLikeHls && Hls.isSupported()) {
@@ -463,6 +495,14 @@ class VideoPlayer {
      */
     getTranscodeUrl(url) {
         return `/api/transcode?url=${encodeURIComponent(url)}`;
+    }
+
+    /**
+     * Get remuxed URL for a stream (container conversion only, no re-encoding)
+     * Used for raw .ts streams that browsers can't play directly
+     */
+    getRemuxUrl(url) {
+        return `/api/remux?url=${encodeURIComponent(url)}`;
     }
 
     /**

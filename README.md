@@ -129,9 +129,37 @@ For streams with Dolby Digital (AC3/EAC3) audio that browsers can't decode nativ
 NodeCast TV is optimized for **HLS (HTTP Live Streaming)**.
 
 -   **✅ HLS (`.m3u8`)**: Fully supported and recommended. Best for adaptive bitrate and network resilience.
--   **✅ MPEG-TS (`.ts`)**: Supported via the backend proxy. Works well for standard IPTV providers (Xtream Codes).
+-   **✅ MPEG-TS (`.ts`)**: Supported via Force Remux or Force Audio Transcode settings.
 -   **⚠️ High Latency/P2P**: For sources like Acestream, prefer HLS output (`.m3u8`) over raw TS streams to avoid timeouts during buffering.
 -   **❌ RTMP/RTSP**: Not supported natively by browsers.
+
+## Streaming Settings
+
+All streaming settings are found in **Settings → Player → Streaming**.
+
+| Setting | What It Does | When to Enable |
+|---------|--------------|----------------|
+| **Force Backend Proxy** | Routes streams through the NodeCast TV server, adding proper CORS headers | When streams fail with "Access-Control-Allow-Origin" errors, or when using IPTV middleware |
+| **Force Audio Transcode** | Transcodes audio to AAC using FFmpeg (video passes through unchanged) | When you have video but no audio (Dolby/AC3/EAC3 streams) |
+| **Force Remux** | Remuxes MPEG-TS to MP4 container using FFmpeg (no re-encoding, very lightweight) | When using raw `.ts` streams from m3u-editor, dispatcharr, or similar middleware |
+| **Stream Output Format** | Controls whether Xtream API requests use HLS (.m3u8) or TS format | Try TS if you experience buffering issues with HLS |
+
+### Which Setting Do I Need?
+
+```
+Stream won't play at all?
+├── CORS error in console? → Enable "Force Backend Proxy"
+├── Raw .ts URL from middleware? → Enable "Force Remux"
+└── Still not working? → Check codec support table above
+
+Video plays but no audio?
+├── Stream has Dolby/AC3/EAC3? → Enable "Force Audio Transcode"
+└── Using Safari? → Should work natively, check volume
+
+Buffering issues?
+└── Try changing "Stream Output Format" to TS
+```
+
 
 ## Troubleshooting
 
@@ -198,6 +226,7 @@ If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfi
 | Setting | Location | When to Enable |
 |---------|----------|----------------|
 | **Force Backend Proxy** | Settings → Player → Streaming | Always recommended when using middleware |
+| **Force Remux** | Settings → Player → Streaming | For raw `.ts` streams (lightweight, no re-encoding) |
 | **Force Audio Transcode** | Settings → Player → Streaming | If you have no audio (Dolby/AC3/EAC3 streams) |
 | **Stream Format: TS** | Settings → Streaming | If HLS streams buffer excessively |
 
@@ -209,8 +238,8 @@ m3u-editor includes an internal proxy that remuxes streams to MPEG-TS.
 
 **Setup:**
 1. In m3u-editor, configure your playlist and enable the proxy if needed
-2. In NodeCast TV, enable **"Force Backend Proxy"** in Settings → Streaming
-3. If audio doesn't play, enable **"Force Audio Transcode"**
+2. In NodeCast TV, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
+3. If audio doesn't play, enable **"Force Audio Transcode"** instead
 
 **Note:** m3u-editor's proxy preserves original codecs. If your source has HEVC or Dolby, you'll need transcoding or a compatible browser (Safari).
 
@@ -222,8 +251,8 @@ dispatcharr uses FFmpeg stream profiles to process streams. By default it output
 
 **Setup:**
 1. In dispatcharr, streams are proxied by default via stream profiles
-2. In NodeCast TV, enable **"Force Backend Proxy"** in Settings → Streaming
-3. If audio doesn't play, enable **"Force Audio Transcode"**
+2. In NodeCast TV, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
+3. If audio doesn't play, enable **"Force Audio Transcode"** instead
 
 **Custom dispatcharr profile for browser compatibility:**
 If you want dispatcharr to transcode audio for you instead of NodeCast TV:
@@ -240,8 +269,8 @@ These HDHomeRun emulators work similarly to other middleware.
 
 **Setup:**
 1. Add your Threadfin/xTeVe M3U URL as an M3U source in NodeCast TV
-2. Enable **"Force Backend Proxy"** in Settings → Streaming
-3. If needed, enable **"Force Audio Transcode"**
+2. Enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
+3. If needed, enable **"Force Audio Transcode"** instead for Dolby audio
 
 ### TVHeadend
 

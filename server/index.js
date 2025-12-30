@@ -37,6 +37,7 @@ app.use('/api/proxy', require('./routes/proxy'));
 app.use('/api/channels', require('./routes/channels'));
 app.use('/api/favorites', require('./routes/favorites'));
 app.use('/api/transcode', require('./routes/transcode'));
+app.use('/api/remux', require('./routes/remux'));
 
 // SPA fallback - serve index.html for all non-API routes
 app.get('*', (req, res) => {
