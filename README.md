@@ -228,7 +228,6 @@ If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfi
 | **Force Backend Proxy** | Settings → Player → Streaming | Always recommended when using middleware |
 | **Force Remux** | Settings → Player → Streaming | For raw `.ts` streams (lightweight, no re-encoding) |
 | **Force Audio Transcode** | Settings → Player → Streaming | If you have no audio (Dolby/AC3/EAC3 streams) |
-| **Stream Format: TS** | Settings → Streaming | If HLS streams buffer excessively |
 
 ---
 
