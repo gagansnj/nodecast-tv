@@ -80,6 +80,13 @@ You can run NodeCast TV easily using Docker.
 
 The application will be available at `http://localhost:3000`.
 
+### Usage
+
+1.  Go to **Settings** -> **Content Sources**.
+2.  Add your IPTV provider details (Xtream Codes or M3U URL).
+3.  Click "Refresh Sources".
+4.  Navigate to **Live TV**, **Movies**, or **Series** to browse your content.
+
 ## Browser Codec Support
 
 NodeCast TV is a web-based application, which means **video decoding is handled by your browser**, not by the server. The server simply proxies the stream data - it does not transcode or re-encode video.
@@ -286,13 +293,6 @@ nodecast-tv/
 │   └── db.js            # Data persistence layer
 └── data/                # Persistent storage (playlists, settings)
 ```
-
-## Usage
-
-1.  Go to **Settings** -> **Content Sources**.
-2.  Add your IPTV provider details (Xtream Codes or M3U URL).
-3.  Click "Refresh Sources".
-4.  Navigate to **Live TV**, **Movies**, or **Series** to browse your content.
 
 ## License
 
