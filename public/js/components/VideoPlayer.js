@@ -292,9 +292,8 @@ class VideoPlayer {
                 this.showError(
                     'This stream uses raw MPEG-TS format (.ts) which browsers cannot play directly.<br><br>' +
                     '<strong>To fix this:</strong><br>' +
-                    '1. Enable <strong>"Force Remux"</strong> in Settings → Streaming (lightweight)<br>' +
-                    '2. Or enable <strong>"Force Audio Transcode"</strong> if you also have audio issues<br>' +
-                    '3. Or configure your source to output HLS (.m3u8) format'
+                    '1. Enable <strong>"Force Remux"</strong> in Settings → Streaming<br>' +
+                    '2. Or configure your source to output HLS (.m3u8) format'
                 );
                 return;
             }
