@@ -126,11 +126,59 @@ NodeCast TV is optimized for **HLS (HTTP Live Streaming)**.
 -   **⚠️ High Latency/P2P**: For sources like Acestream, prefer HLS output (`.m3u8`) over raw TS streams to avoid timeouts during buffering.
 -   **❌ RTMP/RTSP**: Not supported natively by browsers.
 
-### Acestream / P2P Streaming
-If you are using `acestream-docker-home` or similar tools, you **MUST** use the HLS output format.
+## Troubleshooting
 
--   **Don't use**: `http://proxy:6878/ace/getstream?id=...` (This is a raw MPEG-TS stream)
--   **Do use**: `http://proxy:6878/ace/manifest.m3u8?id=...` (This wraps the stream in a browser-friendly HLS playlist)
+### Video Won't Play (Black Screen or Loading Forever)
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Black screen, `Access-Control-Allow-Origin` error | CORS blocked | Enable **"Force Backend Proxy"** in Settings → Streaming |
+| Black screen with `MEDIA_ERR_DECODE` or `fragParsingError` | Unsupported codec (likely HEVC) | Try a different browser (see Codec Support table) |
+| Loading forever (no error) | Decoder hung on unsupported codec | Try Safari or Edge; stream likely uses HEVC |
+
+### No Audio (Video Plays Fine)
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| No audio at all | Dolby/AC3/EAC3 audio | Enable **"Force Audio Transcode"** in Settings → Streaming |
+| No audio on some channels | Codec mismatch | Try Safari (best Dolby support) or enable transcoding |
+| Audio out of sync | Stream encoding issue | Try changing stream format to TS in Settings |
+
+### Buffering Issues
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Constant buffering | Slow network or provider | Try TS format instead of HLS in Settings |
+
+### HTTPS / Reverse Proxy Issues
+
+If you're running NodeCast TV behind a reverse proxy (Nginx, Caddy, Traefik) with HTTPS:
+
+| Symptom | Likely Cause | Solution |
+|---------|--------------|----------|
+| Streams fail with `fragLoadError` | Mixed content (HTTPS page loading HTTP streams) | Enable **"Force Backend Proxy"** in Settings → Streaming |
+| Channel icons don't load | Mixed content on images | Icons are loaded directly; no fix yet for HTTP icons on HTTPS |
+| Streams work on HTTP but not HTTPS | Reverse proxy not passing streams correctly | Ensure your proxy config supports streaming (disable buffering) |
+
+**Caddy example:**
+```
+tv.domain.com {
+    reverse_proxy nodecast:3000 {
+        flush_interval -1
+    }
+}
+```
+
+**Nginx example:**
+```nginx
+location / {
+    proxy_pass http://nodecast:3000;
+    proxy_buffering off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
 
 ### TVHeadend
 
@@ -150,13 +198,20 @@ If you're using TVHeadend as your source, you may need to configure a few settin
 - Enable **"digest+plain"** authentication in TVHeadend if using username/password in the M3U URL
 - Try different stream profiles (`?profile=pass` or `?profile=matroska`) if playback issues persist
 
+### Acestream / P2P Streaming
+
+If you are using `acestream-docker-home` or similar tools, you **MUST** use the HLS output format.
+
+-   **Don't use**: `http://proxy:6878/ace/getstream?id=...` (This is a raw MPEG-TS stream)
+-   **Do use**: `http://proxy:6878/ace/manifest.m3u8?id=...` (This wraps the stream in a browser-friendly HLS playlist)
+
 ## Technology Stack
 
 - **Backend**: Node.js, Express
 - **Frontend**: Vanilla JavaScript (ES6+), CSS3
 - **Database**: JSON-based local storage (LowDB style)
 - **Streaming**: HLS.js for stream playback
-- **Transcoding**: FFmpeg (optional, via ffmpeg-static)
+- **Audio Transcoding**: FFmpeg (optional, via ffmpeg-static)
 
 ## Project Structure
 

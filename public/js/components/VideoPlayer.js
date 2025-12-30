@@ -296,8 +296,15 @@ class VideoPlayer {
                             console.error('Fatal HLS error:', data);
                         }
                     } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                        // Non-fatal media error - just log it (auto-recovery can cause black screens)
+                        // Non-fatal media error - handle specific cases
                         console.log('Non-fatal media error:', data.details);
+                        if (data.details === 'bufferStalledError') {
+                            // Buffer stalled - seek forward to unstick
+                            console.log('[HLS] Buffer stalled, seeking to recover...');
+                            if (!this.video.paused && this.video.currentTime > 0) {
+                                this.video.currentTime += 0.5;
+                            }
+                        }
                     }
                 });
 
