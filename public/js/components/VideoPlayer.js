@@ -308,13 +308,15 @@ class VideoPlayer {
                     if (frag && frag.sn !== 'initSegment') {
                         // Check if we crossed a discontinuity boundary using CC (Continuity Counter)
                         if (frag.cc !== undefined && frag.cc !== this.lastDiscontinuity) {
+                            const wasFirstDetection = this.lastDiscontinuity === -1;
                             console.log(`[HLS] Discontinuity detected: CC ${this.lastDiscontinuity} -> ${frag.cc}`);
                             this.lastDiscontinuity = frag.cc;
 
-                            // Small nudge to help decoder sync (only if playing)
-                            if (!this.video.paused && this.video.currentTime > 0) {
-                                const nudgeAmount = 0.01;
-                                this.video.currentTime += nudgeAmount;
+                            // Skip on first detection (initial load)
+                            if (!wasFirstDetection && !this.video.paused && this.video.currentTime > 0) {
+                                // Seek forward slightly to skip past any corrupted audio frames
+                                console.log('[HLS] Seeking past discontinuity boundary');
+                                this.video.currentTime += 0.5;
                             }
                         }
                     }
