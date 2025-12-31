@@ -21,6 +21,7 @@ async function loadDb() {
         sources: data.sources || [],
         hiddenItems: data.hiddenItems || [],
         favorites: data.favorites || [],
+        settings: data.settings || getDefaultSettings(),
         nextId: data.nextId || 1
       };
     } catch (error) {
@@ -30,6 +31,7 @@ async function loadDb() {
           sources: [],
           hiddenItems: [],
           favorites: [],
+          settings: getDefaultSettings(),
           nextId: 1
         };
       }
@@ -42,13 +44,47 @@ async function loadDb() {
       sources: [],
       hiddenItems: [],
       favorites: [],
+      settings: getDefaultSettings(),
       nextId: 1
     };
   }
 }
 
+// Default settings
+function getDefaultSettings() {
+  return {
+    arrowKeysChangeChannel: true,
+    overlayDuration: 5,
+    defaultVolume: 80,
+    rememberVolume: true,
+    lastVolume: 80,
+    autoPlayNextEpisode: false,
+    forceProxy: false,
+    forceTranscode: false,
+    forceRemux: false,
+    streamFormat: 'm3u8',
+    epgRefreshInterval: '24'
+  };
+}
+
+// Write lock to prevent concurrent writes from corrupting db.json
+let writeQueue = Promise.resolve();
+
 async function saveDb(data) {
-  await fs.writeFile(dbPath, JSON.stringify(data, null, 2));
+  // Queue this write operation - each write waits for the previous one
+  writeQueue = writeQueue.then(async () => {
+    try {
+      const jsonString = JSON.stringify(data, null, 2);
+      await fs.writeFile(dbPath, jsonString);
+    } catch (err) {
+      console.error('Error writing database:', err);
+      throw err;
+    }
+  }).catch(err => {
+    console.error('Database write failed:', err);
+  });
+
+  return writeQueue;
 }
 
 // Source CRUD operations
@@ -253,4 +289,26 @@ const favorites = {
   }
 };
 
-module.exports = { sources, hiddenItems, favorites };
+// Settings operations
+const settings = {
+  async get() {
+    const db = await loadDb();
+    return { ...getDefaultSettings(), ...db.settings };
+  },
+
+  async update(newSettings) {
+    const db = await loadDb();
+    db.settings = { ...db.settings, ...newSettings };
+    await saveDb(db);
+    return db.settings;
+  },
+
+  async reset() {
+    const db = await loadDb();
+    db.settings = getDefaultSettings();
+    await saveDb(db);
+    return db.settings;
+  }
+};
+
+module.exports = { sources, hiddenItems, favorites, settings, getDefaultSettings };

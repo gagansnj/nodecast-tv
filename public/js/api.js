@@ -112,6 +112,14 @@ const API = {
         cache: {
             clear: (sourceId) => API.request('DELETE', `/proxy/cache/${sourceId}`)
         }
+    },
+
+    // Settings
+    settings: {
+        get: () => API.request('GET', '/settings'),
+        update: (data) => API.request('PUT', '/settings', data),
+        reset: () => API.request('DELETE', '/settings'),
+        getDefaults: () => API.request('GET', '/settings/defaults')
     }
 };
 

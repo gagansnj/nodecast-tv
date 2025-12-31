@@ -15,48 +15,83 @@ class VideoPlayer {
         this.overlayDuration = 5000; // 5 seconds
         this.isUsingProxy = false;
         this.currentUrl = null;
+        this.settingsLoaded = false;
 
-        // Settings (loaded from localStorage)
-        this.settings = this.loadSettings();
+        // Settings - start with defaults, load from server async
+        this.settings = this.getDefaultSettings();
 
-        this.init();
+        // Load settings from server, then init
+        this.loadSettingsFromServer().then(() => {
+            this.init();
+        });
     }
 
     /**
-     * Load settings from localStorage
+     * Default settings
+     */
+    getDefaultSettings() {
+        return {
+            arrowKeysChangeChannel: true,
+            overlayDuration: 5,
+            defaultVolume: 80,
+            rememberVolume: true,
+            lastVolume: 80,
+            autoPlayNextEpisode: false,
+            forceProxy: false,
+            forceTranscode: false,
+            forceRemux: false,
+            streamFormat: 'm3u8',
+            epgRefreshInterval: '24'
+        };
+    }
+
+    /**
+     * Load settings from server API
+     */
+    async loadSettingsFromServer() {
+        try {
+            const serverSettings = await API.settings.get();
+            this.settings = { ...this.getDefaultSettings(), ...serverSettings };
+            this.settingsLoaded = true;
+            console.log('[Player] Settings loaded from server');
+        } catch (err) {
+            console.warn('[Player] Failed to load settings from server, using defaults:', err.message);
+            // Fall back to localStorage for backwards compatibility
+            try {
+                const saved = localStorage.getItem('nodecast_tv_player_settings');
+                if (saved) {
+                    this.settings = { ...this.getDefaultSettings(), ...JSON.parse(saved) };
+                    console.log('[Player] Settings loaded from localStorage (fallback)');
+                }
+            } catch (localErr) {
+                console.error('[Player] Error loading localStorage settings:', localErr);
+            }
+        }
+    }
+
+    /**
+     * Save settings to server API
+     */
+    async saveSettings() {
+        try {
+            await API.settings.update(this.settings);
+            console.log('[Player] Settings saved to server');
+        } catch (err) {
+            console.error('[Player] Error saving settings to server:', err);
+            // Also save to localStorage as backup
+            try {
+                localStorage.setItem('nodecast_tv_player_settings', JSON.stringify(this.settings));
+            } catch (localErr) {
+                console.error('[Player] Error saving to localStorage:', localErr);
+            }
+        }
+    }
+
+    /**
+     * Legacy sync method for compatibility - calls async version
      */
     loadSettings() {
-        const defaults = {
-            arrowKeysChangeChannel: true, // Use arrow keys for channel navigation
-            overlayDuration: 5, // Seconds
-            defaultVolume: 80, // 0-100
-            rememberVolume: true, // Persist volume between sessions
-            lastVolume: 80, // Last used volume (if rememberVolume is true)
-            autoPlayNextEpisode: false, // Auto-play next episode in series
-            forceProxy: false, // Force all streams through backend proxy
-            forceTranscode: false, // Force audio transcoding (fixes Dolby/AC3 audio)
-            forceRemux: false // Force remux to MP4 (fixes raw .ts streams, lightweight)
-        };
-        try {
-            const saved = localStorage.getItem('nodecast_tv_player_settings');
-            if (saved) {
-                return { ...defaults, ...JSON.parse(saved) };
-            }
-        } catch (err) {
-            console.error('Error loading settings:', err);
-        }
-        return defaults;
-    }
-
-    /**
-     * Save settings to localStorage
-     */
-    saveSettings() {
-        try {
-            localStorage.setItem('nodecast_tv_player_settings', JSON.stringify(this.settings));
-        } catch (err) {
-            console.error('Error saving settings:', err);
-        }
+        return this.settings;
     }
 
     /**

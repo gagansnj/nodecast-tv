@@ -981,7 +981,8 @@ class ChannelList {
         // Get stream URL
         let streamUrl;
         if (channel.sourceType === 'xtream') {
-            const streamFormat = localStorage.getItem('nodecast_tv_stream_format') || 'm3u8';
+            // Get stream format from player settings (server-side) or fallback
+            const streamFormat = window.app?.player?.settings?.streamFormat || 'm3u8';
             const result = await API.proxy.xtream.getStreamUrl(channel.sourceId, channel.streamId, 'live', streamFormat);
             streamUrl = result.url;
         } else {

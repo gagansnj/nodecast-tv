@@ -105,29 +105,27 @@ class SettingsPage {
 
         // EPG refresh interval
         const epgRefreshSelect = document.getElementById('epg-refresh-interval');
-        if (epgRefreshSelect) {
-            // Load saved value
-            const savedInterval = localStorage.getItem('nodecast_tv_epg_refresh_interval');
-            if (savedInterval) {
-                epgRefreshSelect.value = savedInterval;
-            }
+        if (epgRefreshSelect && this.app.player?.settings) {
+            // Load saved value from player settings
+            epgRefreshSelect.value = this.app.player.settings.epgRefreshInterval || '24';
 
             // Save on change
             epgRefreshSelect.addEventListener('change', () => {
-                localStorage.setItem('nodecast_tv_epg_refresh_interval', epgRefreshSelect.value);
+                this.app.player.settings.epgRefreshInterval = epgRefreshSelect.value;
+                this.app.player.saveSettings();
             });
         }
 
         // Stream output format
         const streamFormatSelect = document.getElementById('setting-stream-format');
-        if (streamFormatSelect) {
-            // Load saved value
-            const savedFormat = localStorage.getItem('nodecast_tv_stream_format') || 'm3u8';
-            streamFormatSelect.value = savedFormat;
+        if (streamFormatSelect && this.app.player?.settings) {
+            // Load saved value from player settings
+            streamFormatSelect.value = this.app.player.settings.streamFormat || 'm3u8';
 
             // Save on change
             streamFormatSelect.addEventListener('change', () => {
-                localStorage.setItem('nodecast_tv_stream_format', streamFormatSelect.value);
+                this.app.player.settings.streamFormat = streamFormatSelect.value;
+                this.app.player.saveSettings();
             });
         }
     }
@@ -146,12 +144,34 @@ class SettingsPage {
         // Load sources when page is shown
         await this.app.sourceManager.loadSources();
 
-        // Refresh player settings display
-        const arrowKeysToggle = document.getElementById('setting-arrow-keys');
-        const overlayDurationInput = document.getElementById('setting-overlay-duration');
+        // Refresh ALL player settings from server
         if (this.app.player?.settings) {
-            arrowKeysToggle.checked = this.app.player.settings.arrowKeysChangeChannel;
-            overlayDurationInput.value = this.app.player.settings.overlayDuration;
+            const s = this.app.player.settings;
+
+            // Player settings
+            const arrowKeysToggle = document.getElementById('setting-arrow-keys');
+            const overlayDurationInput = document.getElementById('setting-overlay-duration');
+            const defaultVolumeSlider = document.getElementById('setting-default-volume');
+            const volumeValueDisplay = document.getElementById('volume-value');
+            const rememberVolumeToggle = document.getElementById('setting-remember-volume');
+            const autoPlayNextToggle = document.getElementById('setting-autoplay-next');
+            const forceProxyToggle = document.getElementById('setting-force-proxy');
+            const forceTranscodeToggle = document.getElementById('setting-force-transcode');
+            const forceRemuxToggle = document.getElementById('setting-force-remux');
+            const epgRefreshSelect = document.getElementById('epg-refresh-interval');
+            const streamFormatSelect = document.getElementById('setting-stream-format');
+
+            if (arrowKeysToggle) arrowKeysToggle.checked = s.arrowKeysChangeChannel;
+            if (overlayDurationInput) overlayDurationInput.value = s.overlayDuration;
+            if (defaultVolumeSlider) defaultVolumeSlider.value = s.defaultVolume;
+            if (volumeValueDisplay) volumeValueDisplay.textContent = s.defaultVolume + '%';
+            if (rememberVolumeToggle) rememberVolumeToggle.checked = s.rememberVolume;
+            if (autoPlayNextToggle) autoPlayNextToggle.checked = s.autoPlayNextEpisode;
+            if (forceProxyToggle) forceProxyToggle.checked = s.forceProxy || false;
+            if (forceTranscodeToggle) forceTranscodeToggle.checked = s.forceTranscode || false;
+            if (forceRemuxToggle) forceRemuxToggle.checked = s.forceRemux || false;
+            if (epgRefreshSelect) epgRefreshSelect.value = s.epgRefreshInterval || '24';
+            if (streamFormatSelect) streamFormatSelect.value = s.streamFormat || 'm3u8';
         }
     }
 
