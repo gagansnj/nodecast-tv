@@ -141,11 +141,20 @@ class VideoPlayer {
                     }
                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                     // Non-fatal media error - try to recover (handles audio codec issues)
-                    console.log('Non-fatal media error, attempting recovery...');
+                    console.log('Non-fatal media error:', data.details);
                     this.hls.recoverMediaError();
-                } else if (data.details === 'bufferAppendError' || data.details === 'fragParsingError') {
-                    // Buffer/parsing errors during ad transitions - try recovery
-                    console.log('Buffer/parsing error during segment, recovering...');
+                    // If fragParsingError, also seek forward slightly to skip corrupted segment
+                    if (data.details === 'fragParsingError' && !this.video.paused && this.video.currentTime > 0) {
+                        console.log('[HLS] Seeking past corrupted segment...');
+                        setTimeout(() => {
+                            if (this.video && !this.video.paused) {
+                                this.video.currentTime += 0.5;
+                            }
+                        }, 100);
+                    }
+                } else if (data.details === 'bufferAppendError') {
+                    // Buffer errors during ad transitions - try recovery
+                    console.log('Buffer append error, recovering...');
                     this.hls.recoverMediaError();
                 }
             });
