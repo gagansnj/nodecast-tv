@@ -140,17 +140,28 @@ class VideoPlayer {
                             break;
                     }
                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                    // Non-fatal media error - try to recover (handles audio codec issues)
-                    console.log('Non-fatal media error:', data.details);
-                    this.hls.recoverMediaError();
-                    // If fragParsingError, also seek forward slightly to skip corrupted segment
-                    if (data.details === 'fragParsingError' && !this.video.paused && this.video.currentTime > 0) {
-                        console.log('[HLS] Seeking past corrupted segment...');
-                        setTimeout(() => {
-                            if (this.video && !this.video.paused) {
-                                this.video.currentTime += 0.5;
-                            }
-                        }, 100);
+                    // Non-fatal media error - try to recover with cooldown to prevent loops
+                    const now = Date.now();
+                    const timeSinceLastRecovery = now - (this.lastRecoveryAttempt || 0);
+
+                    // Only attempt recovery if more than 2 seconds since last attempt
+                    if (timeSinceLastRecovery > 2000) {
+                        console.log('Non-fatal media error:', data.details, '- attempting recovery');
+                        this.lastRecoveryAttempt = now;
+                        this.hls.recoverMediaError();
+
+                        // If fragParsingError, also seek forward slightly to skip corrupted segment
+                        if (data.details === 'fragParsingError' && !this.video.paused && this.video.currentTime > 0) {
+                            console.log('[HLS] Seeking past corrupted segment...');
+                            setTimeout(() => {
+                                if (this.video && !this.video.paused) {
+                                    this.video.currentTime += 1;
+                                }
+                            }, 200);
+                        }
+                    } else {
+                        // Too many errors in quick succession - log but don't spam recovery
+                        console.log('Non-fatal media error (cooldown):', data.details);
                     }
                 } else if (data.details === 'bufferAppendError') {
                     // Buffer errors during ad transitions - try recovery
@@ -336,21 +347,18 @@ class VideoPlayer {
                             this.hls.loadSource(this.getProxiedUrl(this.currentUrl));
                             this.hls.startLoad();
                         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                            console.log('Media error, attempting recovery...');
-                            this.hls.recoverMediaError();
+                            // Fatal media error - try recovery with cooldown
+                            const now = Date.now();
+                            if (now - (this.lastRecoveryAttempt || 0) > 2000) {
+                                console.log('Fatal media error, attempting recovery...');
+                                this.lastRecoveryAttempt = now;
+                                this.hls.recoverMediaError();
+                            }
                         } else {
                             console.error('Fatal HLS error:', data);
                         }
                     } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                        // Non-fatal media error - handle specific cases
-                        console.log('Non-fatal media error:', data.details);
-                        if (data.details === 'bufferStalledError') {
-                            // Buffer stalled - seek forward to unstick
-                            console.log('[HLS] Buffer stalled, seeking to recover...');
-                            if (!this.video.paused && this.video.currentTime > 0) {
-                                this.video.currentTime += 1;
-                            }
-                        }
+                        // Non-fatal media error - already handled in init(), skip duplicate handling
                     }
                 });
 
