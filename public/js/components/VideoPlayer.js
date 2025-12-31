@@ -119,15 +119,39 @@ class VideoPlayer {
                 if (data.fatal) {
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            // If it's a network error and we haven't tried the proxy yet, try it
-                            if (this.currentChannel && !this.isUsingProxy) {
-                                console.log('Network error detected, trying via proxy...');
-                                const proxiedUrl = this.getProxiedUrl(this.currentUrl);
+                            // Track network retry attempts
+                            this.networkRetryCount = (this.networkRetryCount || 0) + 1;
+                            const now = Date.now();
+                            const timeSinceLastNetworkError = now - (this.lastNetworkErrorTime || 0);
+                            this.lastNetworkErrorTime = now;
+
+                            // Reset retry count if it's been more than 30 seconds since last error
+                            if (timeSinceLastNetworkError > 30000) {
+                                this.networkRetryCount = 1;
+                            }
+
+                            console.log(`Network error (attempt ${this.networkRetryCount}/3):`, data.details);
+
+                            if (this.networkRetryCount <= 3 && !this.isUsingProxy) {
+                                // Retry with increasing delay (1s, 2s, 3s)
+                                const retryDelay = this.networkRetryCount * 1000;
+                                console.log(`[HLS] Retrying in ${retryDelay}ms...`);
+                                setTimeout(() => {
+                                    if (this.hls) {
+                                        this.hls.startLoad();
+                                    }
+                                }, retryDelay);
+                            } else if (!this.isUsingProxy) {
+                                // After 3 retries, try proxy
+                                console.log('[HLS] Max retries reached, switching to proxy...');
+                                this.networkRetryCount = 0;
                                 this.isUsingProxy = true;
+                                const proxiedUrl = this.getProxiedUrl(this.currentUrl);
                                 this.hls.loadSource(proxiedUrl);
                                 this.hls.startLoad();
                             } else {
-                                console.log('Network error, attempting recovery...');
+                                // Already using proxy, just retry
+                                console.log('[HLS] Network error on proxy, retrying...');
                                 this.hls.startLoad();
                             }
                             break;
