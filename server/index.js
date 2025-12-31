@@ -16,20 +16,37 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // FFMPEG Configuration (optional - for transcoding support)
-try {
-    let ffmpegPath = require('ffmpeg-static');
+// Priority: 1. System FFmpeg (better Docker DNS support), 2. ffmpeg-static npm package
+const { execSync } = require('child_process');
 
-    // In packaged Electron apps, ffmpeg-static returns path inside .asar archive
-    // but the binary is actually unpacked to app.asar.unpacked
-    if (ffmpegPath && ffmpegPath.includes('app.asar')) {
-        ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
+function findFFmpeg() {
+    // Try system FFmpeg first (better Docker compatibility)
+    try {
+        execSync('ffmpeg -version', { stdio: 'ignore' });
+        console.log('FFmpeg binary configured at: ffmpeg (system)');
+        return 'ffmpeg';
+    } catch (e) {
+        // System FFmpeg not found, try ffmpeg-static
     }
 
-    app.locals.ffmpegPath = ffmpegPath;
-    console.log('FFmpeg binary configured at:', ffmpegPath);
-} catch (err) {
-    console.warn('FFmpeg not available - transcoding will be disabled. Install ffmpeg-static for transcoding support.');
+    // Try ffmpeg-static npm package
+    try {
+        let ffmpegPath = require('ffmpeg-static');
+        // In packaged Electron apps, ffmpeg-static returns path inside .asar archive
+        // but the binary is actually unpacked to app.asar.unpacked
+        if (ffmpegPath && ffmpegPath.includes('app.asar')) {
+            ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
+        }
+        console.log('FFmpeg binary configured at:', ffmpegPath);
+        return ffmpegPath;
+    } catch (err) {
+        console.warn('FFmpeg not available - transcoding/remuxing will be disabled.');
+        console.warn('Install FFmpeg via your package manager or npm install ffmpeg-static');
+        return null;
+    }
 }
+
+app.locals.ffmpegPath = findFFmpeg();
 
 // API Routes
 app.use('/api/sources', require('./routes/sources'));

@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
-# Install build dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
+# Install build dependencies for better-sqlite3 and FFmpeg for streaming
+# Using system FFmpeg instead of ffmpeg-static for better Docker DNS compatibility
+RUN apk add --no-cache python3 make g++ ffmpeg
 
 WORKDIR /app
 

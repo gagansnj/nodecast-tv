@@ -30,6 +30,9 @@ router.get('/', (req, res) => {
         '-i', url,
         // Copy ALL streams without re-encoding
         '-c', 'copy',
+        // Convert AAC from ADTS format (TS) to ASC format (MP4)
+        // Required when remuxing MPEG-TS with AAC audio to MP4
+        '-bsf:a', 'aac_adtstoasc',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
