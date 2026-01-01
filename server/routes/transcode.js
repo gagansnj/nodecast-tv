@@ -44,7 +44,7 @@ router.get('/', (req, res) => {
         '-b:a', '256k', // Increased for surround sound
         '-af', 'aresample=48000:async=1',
         // Handle timestamp discontinuities at output
-        '-vsync', 'passthrough',
+        '-fps_mode', 'passthrough',
         '-max_muxing_queue_size', '1024',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
