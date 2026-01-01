@@ -25,10 +25,12 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        // Error resilience: discard corrupt packets, generate timestamps
+        // Error resilience: discard corrupt packets, generate timestamps, ignore DTS
         '-fflags', '+genpts+discardcorrupt+igndts',
         // Ignore errors in stream and continue
         '-err_detect', 'ignore_err',
+        // Limit max demux delay to prevent buffering issues with bad timestamps
+        '-max_delay', '5000000',
         // Reconnect settings for network drops (useful for live streams)
         '-reconnect', '1',
         '-reconnect_streamed', '1',
@@ -41,6 +43,9 @@ router.get('/', (req, res) => {
         '-ar', '48000',
         '-b:a', '256k', // Increased for surround sound
         '-af', 'aresample=48000:async=1',
+        // Handle timestamp discontinuities at output
+        '-vsync', 'passthrough',
+        '-max_muxing_queue_size', '1024',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
