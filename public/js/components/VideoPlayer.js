@@ -133,6 +133,127 @@ class VideoPlayer {
         };
     }
 
+    /**
+     * Initialize custom video controls for mobile
+     */
+    initCustomControls() {
+        const btnPlay = document.getElementById('btn-play');
+        const btnMute = document.getElementById('btn-mute');
+        const btnPip = document.getElementById('btn-pip');
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const controls = document.getElementById('video-controls');
+
+        if (!btnPlay || !btnMute || !btnPip || !btnFullscreen || !controls) return;
+
+        // Always use native controls
+        this.video.controls = true;
+
+        // Play/Pause button
+        btnPlay.addEventListener('click', () => {
+            if (this.video.paused) {
+                this.video.play();
+            } else {
+                this.video.pause();
+            }
+        });
+
+        // Update play/pause icon
+        const updatePlayIcon = () => {
+            const icon = btnPlay.querySelector('.icon');
+            if (this.video.paused) {
+                icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                btnPlay.title = 'Play';
+            } else {
+                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                btnPlay.title = 'Pause';
+            }
+        };
+
+        this.video.addEventListener('play', updatePlayIcon);
+        this.video.addEventListener('pause', updatePlayIcon);
+
+        // Mute/Unmute button
+        btnMute.addEventListener('click', () => {
+            this.video.muted = !this.video.muted;
+            btnMute.classList.toggle('muted', this.video.muted);
+            
+            // Update icon
+            const icon = btnMute.querySelector('.icon');
+            if (this.video.muted) {
+                icon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+            } else {
+                icon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+            }
+        });
+
+        // Picture-in-Picture button
+        if (document.pictureInPictureEnabled) {
+            btnPip.addEventListener('click', async () => {
+                try {
+                    if (document.pictureInPictureElement) {
+                        await document.exitPictureInPicture();
+                    } else {
+                        await this.video.requestPictureInPicture();
+                    }
+                } catch (err) {
+                    console.error('PiP error:', err);
+                }
+            });
+        } else {
+            btnPip.style.display = 'none';
+        }
+
+        // Fullscreen button
+        btnFullscreen.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                this.container.requestFullscreen().catch(err => {
+                    console.error('Fullscreen error:', err);
+                });
+            }
+        });
+
+        // Show controls on tap/touch for mobile (only hide after interaction)
+        if (isMobile) {
+            let controlsTimeout;
+            const hideControls = () => {
+                clearTimeout(controlsTimeout);
+                controlsTimeout = setTimeout(() => {
+                    controls.classList.remove('show');
+                }, 4000);
+            };
+
+            const showControls = () => {
+                controls.classList.add('show');
+                hideControls();
+            };
+
+            this.video.addEventListener('click', showControls);
+            this.video.addEventListener('touchstart', showControls);
+            
+            // Keep controls visible when video is paused
+            this.video.addEventListener('pause', () => {
+                controls.classList.add('show');
+                clearTimeout(controlsTimeout);
+            });
+            
+            this.video.addEventListener('play', () => {
+                hideControls();
+            });
+        }
+
+        // Update fullscreen icon
+        document.addEventListener('fullscreenchange', () => {
+            const icon = btnFullscreen.querySelector('.icon');
+            if (document.fullscreenElement) {
+                icon.innerHTML = '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>';
+            } else {
+                icon.innerHTML = '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>';
+            }
+        });
+    }
+
     init() {
         // Apply default/remembered volume
         const volume = this.settings.rememberVolume ? this.settings.lastVolume : this.settings.defaultVolume;
@@ -145,6 +266,9 @@ class VideoPlayer {
                 this.saveSettings();
             }
         });
+
+        // Setup custom video controls
+        this.initCustomControls();
 
         // Initialize HLS.js if supported
         if (Hls.isSupported()) {
