@@ -26,7 +26,14 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        '-fflags', '+genpts+discardcorrupt',
+        // Error resilience: discard corrupt packets, generate timestamps
+        '-fflags', '+genpts+discardcorrupt+igndts',
+        // Ignore errors in stream and continue
+        '-err_detect', 'ignore_err',
+        // Reconnect settings for network drops
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '5',
         '-i', url,
         // Copy ALL streams without re-encoding
         '-c', 'copy',

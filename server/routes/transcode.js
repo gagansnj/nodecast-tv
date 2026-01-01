@@ -21,11 +21,18 @@ router.get('/', (req, res) => {
 
     // FFmpeg arguments for transcoding
     // Optimized for VOD content with incompatible audio (Dolby/AC3/EAC3)
-    // NOT recommended for live streams - use HLS.js directly for those
+    // Also works for live streams with ad stitching (Pluto TV, etc.)
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        '-fflags', '+genpts',
+        // Error resilience: discard corrupt packets, generate timestamps
+        '-fflags', '+genpts+discardcorrupt+igndts',
+        // Ignore errors in stream and continue
+        '-err_detect', 'ignore_err',
+        // Reconnect settings for network drops (useful for live streams)
+        '-reconnect', '1',
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '5',
         '-i', url,
         // Video: passthrough (no re-encoding = fast!)
         '-c:v', 'copy',
