@@ -59,6 +59,12 @@
   --navbar-height: 60px;
   --sidebar-width: 320px;
   --epg-sidebar-width: 250px;
+
+  /* Safe area insets for notched devices */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 /* Reset & Base */
@@ -79,6 +85,28 @@ body {
   color: var(--color-text-primary);
   background: var(--color-bg-primary);
   overflow: hidden;
+  /* Prevent pull-to-refresh and overscroll bounce on mobile */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection on touch devices (improves UX) */
+@media (hover: none) {
+  * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection in inputs and content areas */
+  input,
+  textarea,
+  .modal-body,
+  .series-info,
+  .movie-info,
+  .epg-program-desc {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 #app {
@@ -128,6 +156,8 @@ h4 {
   justify-content: space-between;
   height: var(--navbar-height);
   padding: 0 var(--space-lg);
+  padding-left: max(var(--space-lg), var(--safe-area-inset-left));
+  padding-right: max(var(--space-lg), var(--safe-area-inset-right));
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--glass-border);
@@ -165,6 +195,40 @@ h4 {
 .navbar-menu {
   display: flex;
   gap: var(--space-xs);
+}
+
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 110;
+}
+
+.mobile-menu-toggle span {
+  width: 100%;
+  height: 2px;
+  background: var(--color-text-primary);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu-toggle.active span:nth-child(1) {
+  transform: rotate(45deg) translate(7px, 7px);
+}
+
+.mobile-menu-toggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-toggle.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
 }
 
 .nav-link {
@@ -228,6 +292,44 @@ h4 {
 .home-layout {
   display: flex;
   height: 100%;
+  position: relative;
+}
+
+/* Floating Channel Toggle Button (Mobile) */
+.channel-toggle-btn {
+  display: none;
+  position: absolute;
+  top: var(--space-md);
+  left: var(--space-md);
+  z-index: 60;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: all var(--transition-fast);
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.channel-toggle-btn:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.channel-toggle-btn .icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* Channel Sidebar Overlay */
+.channel-sidebar-overlay {
+  display: none;
 }
 
 /* Sidebar */
@@ -337,6 +439,8 @@ h4 {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-sm);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .channel-group {
@@ -497,6 +601,19 @@ h4 {
   background: #000;
   object-fit: contain;
   /* Maintain aspect ratio without overflow */
+}
+
+/* Make video controls more touch-friendly on mobile */
+@media (max-width: 768px) {
+  #video-player::-webkit-media-controls-panel {
+    padding: 8px;
+  }
+
+  #video-player::-webkit-media-controls-play-button,
+  #video-player::-webkit-media-controls-fullscreen-button,
+  #video-player::-webkit-media-controls-volume-slider {
+    transform: scale(1.2);
+  }
 }
 
 /* Closed Caption styling */
@@ -674,6 +791,8 @@ video::cue {
   height: calc(100vh - var(--navbar-height) - 60px);
   overflow: auto;
   padding: var(--space-md);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .epg-time-header {
@@ -805,6 +924,8 @@ video::cue {
   padding: var(--space-lg);
   height: calc(100vh - var(--navbar-height));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .settings-container h2 {
@@ -1206,6 +1327,8 @@ kbd {
 .modal-body {
   padding: var(--space-lg);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .modal-footer {
@@ -1248,6 +1371,8 @@ kbd {
 .epg-program-list {
   max-height: 300px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .epg-program {
@@ -1399,6 +1524,8 @@ kbd {
   background: var(--color-bg-secondary);
   border-radius: var(--radius-md);
   padding: var(--space-md);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .content-group {
@@ -1544,28 +1671,791 @@ kbd {
 /* =====================================================
    Responsive
    ===================================================== */
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 1024px) {
+  /* Tablet adjustments */
+  :root {
+    --sidebar-width: 280px;
+    --epg-sidebar-width: 200px;
+  }
+  
+  .movies-grid,
+  .series-grid {
+    gap: var(--space-sm);
+    padding: var(--space-md);
+  }
+}
+
 @media (max-width: 768px) {
+  /* Tablet/Mobile landscape */
+  :root {
+    --navbar-height: 56px;
+    --sidebar-width: 320px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+  }
+
+  /* Navigation - Hide text labels, show only icons */
+  .navbar {
+    padding: 0 var(--space-md);
+  }
+
+  .navbar-menu {
+    flex: 1;
+    justify-content: space-around;
+    gap: 0;
+  }
+
   .navbar-menu span:not(.nav-icon) {
     display: none;
   }
 
+  .nav-link {
+    padding: var(--space-sm);
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-icon {
+    font-size: 1.4rem;
+  }
+
+  /* Brand - Simplify on tablet */
+  .brand-text {
+    font-size: 1.25rem;
+  }
+
+  /* Home Layout - Full screen video with drawer */
   .home-layout {
-    flex-direction: column;
+    flex-direction: row;
   }
 
+  /* Show floating channel toggle button */
+  .channel-toggle-btn {
+    display: flex;
+  }
+
+  /* Channel sidebar becomes a slide-out drawer */
   .channel-sidebar {
-    width: 100%;
-    height: 200px;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    height: auto;
+    border-right: 1px solid var(--color-border);
+    border-bottom: none;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 90;
+    box-shadow: var(--shadow-lg);
+    visibility: hidden;
   }
 
-  .now-playing {
+  .channel-sidebar.active {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  /* Overlay behind drawer */
+  .channel-sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 80;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .channel-sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+  }
+
+  /* Video player takes full width */
+  .player-section {
+    width: 100%;
+  }
+
+  .sidebar-header {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .sidebar-controls {
+    flex-wrap: wrap;
+  }
+
+  /* Video Player */
+  .player-section {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Now Playing Overlay - Stack vertically */
+  .now-playing-overlay {
     flex-direction: column;
+    bottom: 40px;
+    left: var(--space-md);
+    right: var(--space-md);
+    padding: var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .now-playing-info .channel-name {
+    font-size: 1.25rem;
+  }
+
+  .program-title {
+    font-size: 1rem;
   }
 
   .up-next {
     width: 100%;
+  }
+
+  .channel-nav {
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .channel-nav .btn-icon {
+    width: 48px;
+    height: 36px;
+  }
+
+  /* EPG Guide */
+  .guide-header {
+    flex-direction: column;
+    gap: var(--space-md);
+    align-items: stretch;
+  }
+
+  .guide-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .epg-grid {
+    height: calc(100vh - var(--navbar-height) - 120px);
+  }
+
+  .epg-channel-info {
+    width: 180px;
+  }
+
+  .epg-time-slot {
+    min-width: 160px;
+  }
+
+  /* Movies & Series */
+  .movies-header,
+  .series-header {
+    flex-direction: column;
+    gap: var(--space-md);
+    align-items: stretch;
+    padding: var(--space-md);
+  }
+
+  .movies-controls,
+  .series-controls {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .movies-controls .source-select,
+  .series-controls .source-select,
+  .movies-controls .search-wrapper,
+  .series-controls .search-wrapper {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .movies-grid,
+  .series-grid {
+    padding: var(--space-md);
+    gap: var(--space-md);
+    height: calc(100vh - var(--navbar-height) - 140px);
+  }
+
+  .movie-card,
+  .series-card {
+    flex: 0 0 140px;
+    width: 140px;
+  }
+
+  .movie-poster,
+  .series-poster,
+  .series-card .series-poster {
+    width: 140px;
+    height: 210px;
+  }
+
+  /* Settings */
+  .settings-container {
+    padding: var(--space-md);
+  }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .source-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+  }
+
+  .source-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    justify-content: stretch;
+  }
+
+  .source-actions .btn {
+    flex: 1;
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* Modal */
+  .modal-content {
+    max-width: 90%;
+    margin: var(--space-md);
+  }
+
+  /* Series Details */
+  .series-details-header {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .series-details-header .series-poster {
+    width: 180px;
+    height: 270px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile portrait - phones */
+  :root {
+    --navbar-height: 52px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 20px;
+  }
+
+  body {
+    font-size: 13px;
+  }
+
+  /* Navigation - Compact with hamburger menu */
+  .navbar {
+    padding: 0 var(--space-sm);
+    height: 52px;
+  }
+
+  .logo {
+    font-size: 1.5rem;
+  }
+
+  .brand-text {
+    font-size: 1.1rem;
+  }
+
+  /* Show mobile menu toggle */
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  /* Mobile dropdown menu */
+  .navbar-menu {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0;
+    gap: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    z-index: 100;
+    visibility: hidden;
+  }
+
+  .navbar-menu.active {
+    max-height: 400px;
+    padding: var(--space-sm) 0;
+    box-shadow: var(--shadow-lg);
+    visibility: visible;
+  }
+
+  .nav-link {
+    padding: var(--space-md) var(--space-lg);
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-md);
+    border-radius: 0;
+  }
+
+  .nav-link span:not(.nav-icon) {
+    display: inline !important;
+  }
+
+  .nav-icon {
+    font-size: 1.3rem;
+  }
+
+  /* Hide "TV" from brand on very small screens */
+  .brand-accent {
+    display: none;
+  }
+
+  /* Channel Sidebar - Drawer on mobile */
+  .channel-sidebar {
+    width: 85%;
+    max-width: 320px;
+  }
+
+  .channel-toggle-btn {
+    top: var(--space-sm);
+    left: var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.875rem;
+  }
+
+  .channel-toggle-btn .icon {
+    width: 1.1em;
+    height: 1.1em;
+  }
+
+  .sidebar-header {
+    padding: var(--space-sm);
+  }
+
+  .channel-item {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .channel-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .channel-name {
+    font-size: 0.875rem;
+  }
+
+  .group-header {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  /* Now Playing Overlay - Compact */
+  .now-playing-overlay {
+    padding: var(--space-sm);
+    bottom: 20px;
+    left: var(--space-sm);
+    right: var(--space-sm);
+  }
+
+  .now-playing-info .channel-name {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+
+  .program-title {
+    font-size: 0.875rem;
+  }
+
+  .program-time {
+    font-size: 0.75rem;
+  }
+
+  .up-next {
+    display: none; /* Hide "Up Next" on very small screens */
+  }
+
+  /* EPG Guide - Mobile optimized */
+  .guide-header {
+    padding: var(--space-sm);
+  }
+
+  .guide-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .guide-controls {
+    gap: var(--space-xs);
+  }
+
+  .guide-controls .btn {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.75rem;
+  }
+
+  .epg-channel-info {
+    width: 140px;
+    padding: var(--space-xs);
+  }
+
+  .epg-channel-logo {
+    width: 24px;
+    height: 24px;
+  }
+
+  .epg-channel-name {
+    font-size: 0.75rem;
+  }
+
+  .epg-time-slot {
+    min-width: 140px;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.75rem;
+  }
+
+  .epg-program {
+    padding: var(--space-xs);
+  }
+
+  .epg-program-title {
+    font-size: 0.75rem;
+  }
+
+  .epg-program-time {
+    font-size: 0.65rem;
+  }
+
+  /* Movies & Series Grid - Smaller cards */
+  .movies-header h2,
+  .series-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .movies-controls .btn,
+  .series-controls .btn {
+    font-size: 0.75rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .movies-grid,
+  .series-grid {
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+    justify-content: space-around;
+  }
+
+  .movie-card,
+  .series-card {
+    flex: 0 0 calc(50% - 8px);
+    width: calc(50% - 8px);
+    max-width: 160px;
+  }
+
+  .movie-poster,
+  .series-poster,
+  .series-card .series-poster {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2/3;
+  }
+
+  .movie-title,
+  .series-title {
+    font-size: 0.8rem;
+  }
+
+  .movie-meta,
+  .series-meta {
+    font-size: 0.7rem;
+  }
+
+  /* Favorite button - always visible on mobile */
+  .movie-poster .favorite-btn,
+  .series-poster .favorite-btn {
+    width: 28px;
+    height: 28px;
+    top: 6px;
+    right: 6px;
+  }
+
+  .fav-icon {
+    font-size: 1rem;
+  }
+
+  /* Settings Page - Mobile optimized */
+  .settings-container {
+    padding: var(--space-sm);
+    height: calc(100vh - var(--navbar-height));
+  }
+
+  .settings-container h2 {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-md);
+  }
+
+  .settings-section h3 {
+    font-size: 1rem;
+  }
+
+  .tabs {
+    gap: 2px;
+    margin-bottom: var(--space-md);
+  }
+
+  .tab {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-sm);
+    gap: var(--space-sm);
+  }
+
+  .setting-info {
+    order: -1; /* Move label to top */
+  }
+
+  .setting-label {
+    font-size: 0.875rem;
+  }
+
+  .setting-hint {
+    font-size: 0.7rem;
+  }
+
+  .source-item {
+    padding: var(--space-sm);
+  }
+
+  .source-name {
+    font-size: 0.875rem;
+  }
+
+  .source-url {
+    font-size: 0.7rem;
+  }
+
+  .btn {
+    font-size: 0.8rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .btn-sm {
+    font-size: 0.7rem;
+    padding: 4px var(--space-xs);
+  }
+
+  /* Content Browser */
+  .content-browser-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-sm);
+  }
+
+  .content-type-toggle {
+    justify-content: center;
+  }
+
+  .content-actions {
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  /* Series Details */
+  .series-details {
+    padding: var(--space-sm);
+  }
+
+  .series-back-btn {
+    padding: var(--space-xs) var(--space-sm);
+    margin-bottom: var(--space-md);
+    font-size: 0.875rem;
+  }
+
+  .series-details-header .series-poster {
+    width: 160px;
+    height: 240px;
+  }
+
+  .series-info h3 {
+    font-size: 1.25rem;
+  }
+
+  .series-info p {
+    font-size: 0.875rem;
+  }
+
+  .season-header {
+    padding: var(--space-sm);
+  }
+
+  .season-name {
+    font-size: 0.875rem;
+  }
+
+  .episode-item {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .episode-number {
+    width: 32px;
+    font-size: 0.875rem;
+  }
+
+  .episode-title {
+    font-size: 0.875rem;
+  }
+
+  .episode-duration {
+    font-size: 0.75rem;
+  }
+
+  /* Modal - Full screen on mobile */
+  .modal-content {
+    max-width: 95%;
+    max-height: 95vh;
+  }
+
+  .modal-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .modal-body {
+    padding: var(--space-md);
+  }
+
+  /* Forms */
+  .form-input {
+    font-size: 0.875rem;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  /* Keyboard shortcuts - Hide on mobile since they're not relevant */
+  .shortcuts-grid {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small phones */
+  :root {
+    --navbar-height: 48px;
+  }
+
+  .navbar {
+    height: 48px;
+  }
+
+  .brand-text {
+    font-size: 1rem;
+  }
+
+  .channel-sidebar {
+    width: 90%;
+    max-width: 300px;
+  }
+
+  /* Single column for very small screens */
+  .movie-card,
+  .series-card {
+    flex: 0 0 calc(50% - 6px);
+    width: calc(50% - 6px);
+  }
+
+  .now-playing-overlay {
+    padding: var(--space-xs);
+  }
+
+  .now-playing-info .channel-name {
+    font-size: 1rem;
+  }
+
+  .epg-channel-info {
+    width: 120px;
+  }
+
+  .epg-time-slot {
+    min-width: 120px;
+  }
+}
+
+/* Landscape orientation adjustments for phones */
+@media (max-width: 896px) and (orientation: landscape) {
+  .channel-sidebar {
+    width: 280px;
+  }
+
+  .navbar-menu {
+    gap: 4px;
+  }
+
+  .now-playing-overlay {
+    bottom: 10px;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .now-playing-info .channel-name {
+    font-size: 1rem;
+    margin-bottom: 2px;
+  }
+
+  .program-title {
+    font-size: 0.8rem;
+  }
+
+  .channel-nav {
+    display: none; /* Hide channel nav in landscape to save space */
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch target sizes */
+  .btn,
+  .nav-link,
+  .channel-item,
+  .movie-card,
+  .series-card,
+  .tab {
+    min-height: 44px; /* iOS recommended touch target */
+  }
+
+  .channel-item {
+    padding: var(--space-sm);
+  }
+
+  /* Always show favorite buttons on touch devices */
+  .favorite-btn {
+    opacity: 1 !important;
+  }
+
+  /* Remove hover effects */
+  .channel-item:hover,
+  .movie-card:hover,
+  .series-card:hover {
+    transform: none;
+  }
+
+  /* Show play overlay by default on touch */
+  .movie-play-overlay,
+  .series-play-overlay {
+    opacity: 0.3;
   }
 }
 
@@ -1689,6 +2579,8 @@ kbd {
   padding: var(--space-lg);
   overflow-y: auto;
   height: calc(100vh - 120px);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   justify-content: center;
   align-content: flex-start;
 }
@@ -1827,6 +2719,8 @@ kbd {
   padding: var(--space-lg);
   overflow-y: auto;
   height: calc(100vh - 120px);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   justify-content: center;
   align-content: flex-start;
 }
@@ -1909,6 +2803,8 @@ kbd {
   position: absolute;
   inset: 0;
   background: var(--color-bg-primary);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   overflow-y: auto;
   padding: var(--space-lg);
 }

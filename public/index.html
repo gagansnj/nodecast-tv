@@ -3,7 +3,10 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>NodeCast TV | IPTV Player</title>
   <meta name="description" content="Stream live TV, movies, and series with EPG support">
   <link rel="stylesheet" href="css/main.css">
@@ -25,7 +28,12 @@
           </svg></span>
         <span class="brand-text">NodeCast <span class="brand-accent">TV</span></span>
       </div>
-      <div class="navbar-menu">
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="navbar-menu" id="navbar-menu">
         <a href="#" class="nav-link active" data-page="home">
           <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
               class="icon">
@@ -73,8 +81,19 @@
       <!-- Home Page -->
       <div id="page-home" class="page active">
         <div class="home-layout">
+          <!-- Channel Toggle Button (Mobile) -->
+          <button class="channel-toggle-btn" id="channel-toggle-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+            </svg>
+            <span>Channels</span>
+          </button>
+
+          <!-- Overlay for drawer -->
+          <div class="channel-sidebar-overlay" id="channel-sidebar-overlay"></div>
+
           <!-- Channel Sidebar -->
-          <aside class="channel-sidebar">
+          <aside class="channel-sidebar" id="channel-sidebar">
             <div class="sidebar-header">
               <div class="search-wrapper">
                 <input type="text" id="channel-search" placeholder="Search channels..." class="search-input">

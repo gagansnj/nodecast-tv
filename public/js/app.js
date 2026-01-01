@@ -24,6 +24,59 @@ class App {
     }
 
     async init() {
+        // Mobile menu toggle
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const navbarMenu = document.getElementById('navbar-menu');
+        
+        if (mobileMenuToggle && navbarMenu) {
+            mobileMenuToggle.addEventListener('click', () => {
+                mobileMenuToggle.classList.toggle('active');
+                navbarMenu.classList.toggle('active');
+            });
+
+            // Close menu when a nav link is clicked
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenuToggle.classList.remove('active');
+                    navbarMenu.classList.remove('active');
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.navbar')) {
+                    mobileMenuToggle.classList.remove('active');
+                    navbarMenu.classList.remove('active');
+                }
+            });
+        }
+
+        // Channel drawer toggle (mobile)
+        const channelToggleBtn = document.getElementById('channel-toggle-btn');
+        const channelSidebar = document.getElementById('channel-sidebar');
+        const channelOverlay = document.getElementById('channel-sidebar-overlay');
+
+        if (channelToggleBtn && channelSidebar && channelOverlay) {
+            const toggleChannelDrawer = () => {
+                channelSidebar.classList.toggle('active');
+                channelOverlay.classList.toggle('active');
+            };
+
+            channelToggleBtn.addEventListener('click', toggleChannelDrawer);
+            channelOverlay.addEventListener('click', toggleChannelDrawer);
+
+            // Close drawer when a channel is selected
+            channelSidebar.addEventListener('click', (e) => {
+                if (e.target.closest('.channel-item')) {
+                    // Small delay to let the channel selection happen
+                    setTimeout(() => {
+                        channelSidebar.classList.remove('active');
+                        channelOverlay.classList.remove('active');
+                    }, 300);
+                }
+            });
+        }
+
         // Navigation handling
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
