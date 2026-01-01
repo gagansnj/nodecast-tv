@@ -8,6 +8,7 @@ A modern, web-based IPTV player featuring Live TV, EPG, Movies (VOD), and Series
 - **📅 TV Guide (EPG)**: Interactive grid guide with 24h timeline, search, and dynamic resizing.
 - **🎬 VOD Support**: Dedicated sections for Movies and TV Series with rich metadata, posters, and seasonal episode lists.
 - **❤️ Favorites System**: Unified favorites for channels, movies, and series with instant synchronization.
+- **🔐 Authentication**: User login system with admin and viewer roles ([details](#authentication)).
 - **⚡ High Performance**: Optimized for large playlists (7000+ channels) using virtual scrolling and batch rendering.
 - **⚙️ Management**: 
   - Support for Xtream Codes and M3U playlists.
@@ -86,6 +87,7 @@ The application will be available at `http://localhost:3000`.
 2.  Add your IPTV provider details (Xtream Codes or M3U URL).
 3.  Click "Refresh Sources".
 4.  Navigate to **Live TV**, **Movies**, or **Series** to browse your content.
+
 
 ## Browser Codec Support
 
