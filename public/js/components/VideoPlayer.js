@@ -112,9 +112,11 @@ class VideoPlayer {
             // Audio discontinuity handling (fixes garbled audio during ad transitions)
             stretchShortVideoTrack: true,  // Stretch short segments to avoid gaps
             forceKeyFrameOnDiscontinuity: true, // Force keyframe sync on discontinuity
-            // Audio drift tolerance - higher = less aggressive correction = fewer glitches
-            // 1 frame = ~23ms at 44.1kHz, so 4 frames = ~92ms tolerance
-            maxAudioFramesDrift: 4,        // Allow ~92ms audio drift before correction
+            // Audio settings - prevent glitches during stream transitions
+            // Higher drift tolerance = less aggressive correction = fewer glitches
+            maxAudioFramesDrift: 8,        // Allow ~185ms audio drift before correction (was 4)
+            // Audio track handling
+            audioStreamController: true,   // Enable audio stream controller
             // Disable progressive/streaming mode for stability with discontinuities
             progressive: false,
             // Stall recovery settings
@@ -124,6 +126,8 @@ class VideoPlayer {
             levelLoadingMaxRetry: 4,
             manifestLoadingMaxRetry: 4,
             fragLoadingMaxRetry: 6,
+            // Low latency mode off for more stable audio
+            lowLatencyMode: false,
             // Caption/Subtitle settings
             enableCEA708Captions: true,    // Enable CEA-708 closed captions
             enableWebVTT: true,            // Enable WebVTT subtitles
@@ -203,10 +207,25 @@ class VideoPlayer {
                     const now = Date.now();
                     const timeSinceLastRecovery = now - (this.lastRecoveryAttempt || 0);
 
+                    // Track consecutive media errors for escalated recovery
+                    if (timeSinceLastRecovery < 5000) {
+                        this.mediaErrorCount = (this.mediaErrorCount || 0) + 1;
+                    } else {
+                        this.mediaErrorCount = 1;
+                    }
+
                     // Only attempt recovery if more than 2 seconds since last attempt
                     if (timeSinceLastRecovery > 2000) {
-                        console.log('Non-fatal media error:', data.details, '- attempting recovery');
+                        console.log(`Non-fatal media error (${this.mediaErrorCount}x):`, data.details, '- attempting recovery');
                         this.lastRecoveryAttempt = now;
+
+                        // If repeated errors, try swapAudioCodec which can fix audio glitches
+                        if (this.mediaErrorCount >= 3) {
+                            console.log('[HLS] Multiple errors detected, trying swapAudioCodec...');
+                            this.hls.swapAudioCodec();
+                            this.mediaErrorCount = 0;
+                        }
+
                         this.hls.recoverMediaError();
 
                         // If fragParsingError, also seek forward slightly to skip corrupted segment
