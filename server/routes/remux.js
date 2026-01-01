@@ -26,10 +26,15 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        // Error resilience: discard corrupt packets, generate timestamps
-        '-fflags', '+genpts+discardcorrupt+igndts',
+        // Low-latency startup: reduce probe/analyze time for faster first bytes
+        '-probesize', '32768',
+        '-analyzeduration', '0',
+        // Error resilience: discard corrupt packets, generate timestamps, ignore DTS, no buffering
+        '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
         // Ignore errors in stream and continue
         '-err_detect', 'ignore_err',
+        // Limit max demux delay to prevent buffering issues with bad timestamps
+        '-max_delay', '5000000',
         // Reconnect settings for network drops
         '-reconnect', '1',
         '-reconnect_streamed', '1',
@@ -40,6 +45,9 @@ router.get('/', (req, res) => {
         // Convert AAC from ADTS format (TS) to ASC format (MP4)
         // Required when remuxing MPEG-TS with AAC audio to MP4
         '-bsf:a', 'aac_adtstoasc',
+        // Handle timestamp discontinuities at output
+        '-fps_mode', 'passthrough',
+        '-max_muxing_queue_size', '1024',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
         '-movflags', 'frag_keyframe+empty_moov+default_base_moof',

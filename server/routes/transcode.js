@@ -25,8 +25,11 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        // Error resilience: discard corrupt packets, generate timestamps, ignore DTS
-        '-fflags', '+genpts+discardcorrupt+igndts',
+        // Low-latency startup: reduce probe/analyze time for faster first bytes
+        '-probesize', '32768',
+        '-analyzeduration', '0',
+        // Error resilience: discard corrupt packets, generate timestamps, ignore DTS, no buffering
+        '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
         // Ignore errors in stream and continue
         '-err_detect', 'ignore_err',
         // Limit max demux delay to prevent buffering issues with bad timestamps
