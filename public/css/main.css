@@ -616,6 +616,89 @@ h4 {
   }
 }
 
+/* Custom Video Controls */
+.video-controls {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  display: none;
+  flex-direction: column;
+  gap: var(--space-sm);
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.video-controls.show {
+  pointer-events: auto;
+}
+
+.video-container:hover .video-controls,
+.video-controls.show {
+  opacity: 1;
+}
+
+.video-control-btn {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-md);
+}
+
+.video-control-btn:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  transform: scale(1.05);
+}
+
+.video-control-btn:active {
+  transform: scale(0.95);
+}
+
+.video-control-btn .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.video-control-btn.muted .icon {
+  color: var(--color-error);
+}
+
+/* Show custom controls on mobile as supplementary */
+@media (max-width: 768px) {
+  .video-controls {
+    display: flex;
+  }
+  
+  /* Make control buttons larger on mobile */
+  .video-control-btn {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .video-control-btn .icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .video-controls {
+    display: flex;
+  }
+}
+
 /* Closed Caption styling */
 video::cue {
   background-color: rgba(0, 0, 0, 0.8);
