@@ -144,23 +144,6 @@ All streaming settings are found in **Settings → Player → Streaming**.
 | **Force Remux** | Remuxes MPEG-TS to MP4 container using FFmpeg (no re-encoding, very lightweight) | When using raw `.ts` streams from m3u-editor, dispatcharr, or similar middleware |
 | **Stream Output Format** | Controls whether Xtream API requests use HLS (.m3u8) or TS format | Try TS if you experience buffering issues with HLS |
 
-### Which Setting Do I Need?
-
-```
-Stream won't play at all?
-├── CORS error in console? → Enable "Force Backend Proxy"
-├── Raw .ts URL from middleware? → Enable "Force Remux"
-└── Still not working? → Check codec support table above
-
-Video plays but no audio?
-├── Stream has Dolby/AC3/EAC3? → Enable "Force Audio Transcode"
-└── Using Safari? → Should work natively, check volume
-
-Buffering issues?
-└── Try changing "Stream Output Format" to TS
-```
-
-
 ## Troubleshooting
 
 ### Video Won't Play (Black Screen or Loading Forever)
