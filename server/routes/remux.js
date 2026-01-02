@@ -28,7 +28,7 @@ router.get('/', (req, res) => {
         '-loglevel', 'warning',
         // Low-latency startup: reduce probe/analyze time for faster first bytes
         '-probesize', '32768',
-        '-analyzeduration', '0',
+        '-analyzeduration', '500000', // 0.5 seconds - enough to detect audio
         // Error resilience: discard corrupt packets, generate timestamps, ignore DTS, no buffering
         '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
         // Ignore errors in stream and continue
