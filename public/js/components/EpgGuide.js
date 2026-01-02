@@ -120,8 +120,11 @@ class EpgGuide {
      * Get EPG refresh interval from settings (in hours)
      */
     getRefreshInterval() {
-        const saved = localStorage.getItem('nodecast_tv_epg_refresh_interval');
-        return saved ? parseInt(saved) : 24; // Default 24 hours
+        // Read from server-side player settings (synced via Settings page)
+        if (window.app?.player?.settings?.epgRefreshInterval) {
+            return parseInt(window.app.player.settings.epgRefreshInterval);
+        }
+        return 24; // Default 24 hours
     }
 
     /**
