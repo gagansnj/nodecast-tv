@@ -122,9 +122,81 @@ class EpgGuide {
     getRefreshInterval() {
         // Read from server-side player settings (synced via Settings page)
         if (window.app?.player?.settings?.epgRefreshInterval) {
-            return parseInt(window.app.player.settings.epgRefreshInterval);
+            return parseFloat(window.app.player.settings.epgRefreshInterval);
         }
         return 24; // Default 24 hours
+    }
+
+    /**
+     * Start background EPG refresh timer
+     * Automatically fetches fresh EPG data at the configured interval
+     */
+    startBackgroundRefresh() {
+        // Clear any existing timer
+        this.stopBackgroundRefresh();
+
+        const intervalHours = this.getRefreshInterval();
+
+        // If interval is 0 or invalid, don't start timer (manual refresh only)
+        if (!intervalHours || intervalHours <= 0) {
+            console.log('[EPG] Background refresh disabled (manual only mode)');
+            this._currentRefreshInterval = 0;
+            return;
+        }
+
+        const intervalMs = intervalHours * 60 * 60 * 1000; // Convert hours to milliseconds
+
+        console.log(`[EPG] Starting background refresh timer: every ${intervalHours} hours (${Math.round(intervalMs / 1000)}s)`);
+
+        this._backgroundRefreshTimer = setInterval(async () => {
+            console.log('[EPG] Background refresh triggered');
+            try {
+                await this.fetchEpgData(true); // Force refresh
+                this.lastRefreshTime = new Date();
+                console.log('[EPG] Background refresh complete');
+
+                // Update channel list program info if visible
+                if (window.app?.channelList) {
+                    window.app.channelList.clearProgramInfoCache();
+                    window.app.channelList.updateVisibleEpgInfo?.();
+                }
+            } catch (err) {
+                console.error('[EPG] Background refresh failed:', err);
+            }
+        }, intervalMs);
+
+        // Store current interval so we can detect changes
+        this._currentRefreshInterval = intervalHours;
+    }
+
+    /**
+     * Stop background EPG refresh timer
+     */
+    stopBackgroundRefresh() {
+        if (this._backgroundRefreshTimer) {
+            clearInterval(this._backgroundRefreshTimer);
+            this._backgroundRefreshTimer = null;
+            console.log('[EPG] Background refresh timer stopped');
+        }
+    }
+
+    /**
+     * Restart background refresh if interval has changed
+     * Called when settings change
+     */
+    restartBackgroundRefreshIfNeeded() {
+        const newInterval = this.getRefreshInterval();
+        if (this._currentRefreshInterval !== newInterval) {
+            console.log(`[EPG] Refresh interval changed: ${this._currentRefreshInterval}h -> ${newInterval}h`);
+            this.startBackgroundRefresh();
+        }
+    }
+
+    /**
+     * Get last refresh time for display
+     */
+    getLastRefreshTime() {
+        return this.lastRefreshTime || null;
     }
 
     /**
@@ -134,7 +206,12 @@ class EpgGuide {
         try {
             this.container.innerHTML = '<div class="loading"></div>';
             await this.fetchEpgData(forceRefresh);
+            this.lastRefreshTime = new Date();
             this.render();
+
+            // Start background refresh timer after initial load
+            // This ensures EPG data stays fresh while the app is open
+            this.startBackgroundRefresh();
         } catch (err) {
             console.error('Error loading EPG:', err);
             this.container.innerHTML = `

@@ -19,7 +19,7 @@ class SettingsPage {
 
         // Player settings
         this.initPlayerSettings();
-        
+
         // User management (admin only)
         this.initUserManagement();
     }
@@ -112,10 +112,15 @@ class SettingsPage {
             // Load saved value from player settings
             epgRefreshSelect.value = this.app.player.settings.epgRefreshInterval || '24';
 
-            // Save on change
+            // Save on change and restart background timer
             epgRefreshSelect.addEventListener('change', () => {
                 this.app.player.settings.epgRefreshInterval = epgRefreshSelect.value;
                 this.app.player.saveSettings();
+
+                // Restart EPG background refresh with new interval
+                if (window.app?.epgGuide) {
+                    window.app.epgGuide.restartBackgroundRefreshIfNeeded();
+                }
             });
         }
 
@@ -136,17 +141,17 @@ class SettingsPage {
     initUserManagement() {
         // User tab visibility is handled in show() method
         // when currentUser is available
-        
+
         // Handle add user form
         const addUserForm = document.getElementById('add-user-form');
         if (addUserForm) {
             addUserForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                
+
                 const username = document.getElementById('new-username').value;
                 const password = document.getElementById('new-password').value;
                 const role = document.getElementById('new-role').value;
-                
+
                 try {
                     await API.users.create({ username, password, role });
                     alert('User created successfully!');
@@ -162,15 +167,15 @@ class SettingsPage {
     async loadUsers() {
         const userList = document.getElementById('user-list');
         if (!userList) return;
-        
+
         try {
             const users = await API.users.getAll();
-            
+
             if (users.length === 0) {
                 userList.innerHTML = '<tr><td colspan="4" class="hint">No users found</td></tr>';
                 return;
             }
-            
+
             userList.innerHTML = users.map(user => `
                 <tr>
                     <td>${user.username}</td>
@@ -192,17 +197,17 @@ class SettingsPage {
         const username = prompt('Enter new username (leave blank to keep current):');
         const password = prompt('Enter new password (leave blank to keep current):');
         const role = prompt('Enter role (admin or viewer, leave blank to keep current):');
-        
+
         const updates = {};
         if (username) updates.username = username;
         if (password) updates.password = password;
         if (role) updates.role = role;
-        
+
         if (Object.keys(updates).length === 0) {
             alert('No changes made');
             return;
         }
-        
+
         try {
             await API.users.update(userId, updates);
             alert('User updated successfully!');
@@ -216,7 +221,7 @@ class SettingsPage {
         if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
             return;
         }
-        
+
         try {
             await API.users.delete(userId);
             alert('User deleted successfully!');
@@ -234,7 +239,7 @@ class SettingsPage {
         if (tabName === 'content') {
             this.app.sourceManager.loadContentSources();
         }
-        
+
         // Load users when switching to users tab
         if (tabName === 'users') {
             this.loadUsers();
@@ -249,7 +254,7 @@ class SettingsPage {
                 usersTab.style.display = 'block';
             }
         }
-        
+
         // Load sources when page is shown
         await this.app.sourceManager.loadSources();
 
