@@ -1,6 +1,10 @@
-# NodeCast TV
+<p align="center">
+  <img src="public/img/logo-banner.png" alt="nodecast-tv" height="60" />
+</p>
 
-A modern, web-based IPTV player featuring Live TV, EPG, Movies (VOD), and Series support. Built with performance and user experience in mind.
+# What is nodecast-tv?
+
+nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (VOD), and Series support. Built with performance and user experience in mind.
 
 ## Features
 
@@ -15,6 +19,7 @@ A modern, web-based IPTV player featuring Live TV, EPG, Movies (VOD), and Series
   - Manage hidden content categories.
   - Playback preferences (volume memory, auto-play).
 - **🔊 Audio Transcoding**: Optional FFmpeg-based audio transcoding for Dolby/AC3/EAC3 compatibility.
+- **📦 Stream Remux**: Lightweight FFmpeg remux for raw MPEG-TS streams from IPTV middleware.
 - **🐳 Docker Ready**: Easy deployment containerization.
 
 ## Screenshots
@@ -55,7 +60,7 @@ A modern, web-based IPTV player featuring Live TV, EPG, Movies (VOD), and Series
 
 ### Docker Deployment
 
-You can run NodeCast TV easily using Docker.
+You can run nodecast-tv easily using Docker.
 
 1.  Create a `docker-compose.yml` file (or copy the one from this repo):
 
@@ -91,7 +96,7 @@ The application will be available at `http://localhost:3000`.
 
 ## Browser Codec Support
 
-NodeCast TV is a web-based application, which means **video decoding is handled by your browser**, not by the server. The server simply proxies the stream data - it does not transcode or re-encode video.
+nodecast-tv is a web-based application, which means **video decoding is handled by your browser**, not by the server. The server simply proxies the stream data - it does not transcode or re-encode video.
 
 This means codec support depends entirely on what your browser can decode natively:
 
@@ -128,7 +133,7 @@ For streams with Dolby Digital (AC3/EAC3) audio that browsers can't decode nativ
 
 ## Supported Stream Types
 
-NodeCast TV is optimized for **HLS (HTTP Live Streaming)**.
+nodecast-tv is optimized for **HLS (HTTP Live Streaming)**.
 
 -   **✅ HLS (`.m3u8`)**: Fully supported and recommended. Best for adaptive bitrate and network resilience.
 -   **✅ MPEG-TS (`.ts`)**: Supported via Force Remux in settings.
@@ -141,7 +146,7 @@ All streaming settings are found in **Settings → Player → Streaming**.
 
 | Setting | What It Does | When to Enable |
 |---------|--------------|----------------|
-| **Force Backend Proxy** | Routes streams through the NodeCast TV server, adding proper CORS headers | When streams fail with "Access-Control-Allow-Origin" errors, or when using IPTV middleware |
+| **Force Backend Proxy** | Routes streams through the nodecast-tv server, adding proper CORS headers | When streams fail with "Access-Control-Allow-Origin" errors, or when using IPTV middleware |
 | **Force Audio Transcode** | Transcodes audio to AAC using FFmpeg (video passes through unchanged) | When you have video but no audio (Dolby/AC3/EAC3 streams) |
 | **Force Remux** | Remuxes MPEG-TS to MP4 container using FFmpeg (no re-encoding, very lightweight) | When using raw `.ts` streams from m3u-editor, dispatcharr, or similar middleware |
 | **Stream Output Format** | Controls whether Xtream API requests use HLS (.m3u8) or TS format | Try TS if you experience buffering issues with HLS |
@@ -172,7 +177,7 @@ All streaming settings are found in **Settings → Player → Streaming**.
 
 ### HTTPS / Reverse Proxy Issues
 
-If you're running NodeCast TV behind a reverse proxy (Nginx, Caddy, Traefik) with HTTPS:
+If you're running nodecast-tv behind a reverse proxy (Nginx, Caddy, Traefik) with HTTPS:
 
 | Symptom | Likely Cause | Solution |
 |---------|--------------|----------|
@@ -204,9 +209,9 @@ location / {
 
 ### IPTV Middleware (m3u-editor, dispatcharr, Threadfin, etc.)
 
-If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfin**, or **xTeVe** to manage your streams, you may need to adjust NodeCast TV settings for optimal playback. These tools typically use passthrough mode, which preserves original codecs (like HEVC/Dolby) that most browsers cannot decode natively, and may also trigger CORS restrictions.
+If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfin**, or **xTeVe** to manage your streams, you may need to adjust nodecast-tv settings for optimal playback. These tools typically use passthrough mode, which preserves original codecs (like HEVC/Dolby) that most browsers cannot decode natively, and may also trigger CORS restrictions.
 
-**Recommended Settings in NodeCast TV:**
+**Recommended Settings in nodecast-tv:**
 
 | Setting | Location | When to Enable |
 |---------|----------|----------------|
@@ -222,7 +227,7 @@ m3u-editor includes an internal proxy that remuxes streams to MPEG-TS.
 
 **Setup:**
 1. In m3u-editor, configure your playlist and enable the proxy if needed
-2. In NodeCast TV, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
+2. In nodecast-tv, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
 3. If audio doesn't play, enable **"Force Audio Transcode"** instead
 
 **Note:** m3u-editor's proxy preserves original codecs. If your source has HEVC or Dolby, you'll need transcoding or a compatible browser (Safari).
@@ -235,11 +240,11 @@ dispatcharr uses FFmpeg stream profiles to process streams. By default it output
 
 **Setup:**
 1. In dispatcharr, streams are proxied by default via stream profiles
-2. In NodeCast TV, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
+2. In nodecast-tv, enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
 3. If audio doesn't play, enable **"Force Audio Transcode"** instead
 
 **Custom dispatcharr profile for browser compatibility:**
-If you want dispatcharr to transcode audio for you instead of NodeCast TV:
+If you want dispatcharr to transcode audio for you instead of nodecast-tv:
 ```
 -user_agent {userAgent} -i {streamUrl} -c:v copy -c:a aac -f mpegts pipe:1
 ```
@@ -252,22 +257,22 @@ This keeps video passthrough but converts audio to AAC.
 These HDHomeRun emulators work similarly to other middleware.
 
 **Setup:**
-1. Add your Threadfin/xTeVe M3U URL as an M3U source in NodeCast TV
+1. Add your Threadfin/xTeVe M3U URL as an M3U source in nodecast-tv
 2. Enable **"Force Remux"** in Settings → Streaming (for raw .ts streams)
 3. If needed, enable **"Force Audio Transcode"** instead for Dolby audio
 
 ### TVHeadend
 
-If you're using TVHeadend as your source, you may need to configure a few settings for streams to play correctly in NodeCast TV:
+If you're using TVHeadend as your source, you may need to configure a few settings for streams to play correctly in nodecast-tv:
 
 **Option 1: Enable Force Backend Proxy (Easiest)**
-- In NodeCast TV, go to **Settings → Player → Streaming**
+- In nodecast-tv, go to **Settings → Player → Streaming**
 - Enable **"Force Backend Proxy"**
 - This routes streams through the server, bypassing browser CORS restrictions
 
 **Option 2: Configure TVHeadend CORS**
 - In TVHeadend, go to **Configuration → General → Base → HTTP Server Settings**
-- Add your NodeCast TV URL to **"CORS origin"** (e.g., `http://192.168.1.100:3000`)
+- Add your nodecast-tv URL to **"CORS origin"** (e.g., `http://192.168.1.100:3000`)
 - **Note:** You must include the protocol (`http://` or `https://`)
 
 **Additional Tips:**
