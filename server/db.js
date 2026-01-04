@@ -72,15 +72,21 @@ function getDefaultSettings() {
 
 // Write lock to prevent concurrent writes from corrupting db.json
 let writeQueue = Promise.resolve();
+const tmpPath = dbPath + '.tmp';
 
 async function saveDb(data) {
   // Queue this write operation - each write waits for the previous one
   writeQueue = writeQueue.then(async () => {
     try {
       const jsonString = JSON.stringify(data, null, 2);
-      await fs.writeFile(dbPath, jsonString);
+      // Atomic write: write to temp file, then rename
+      // Rename is atomic on most filesystems, preventing corruption on crash
+      await fs.writeFile(tmpPath, jsonString);
+      await fs.rename(tmpPath, dbPath);
     } catch (err) {
       console.error('Error writing database:', err);
+      // Clean up temp file if it exists
+      try { await fs.unlink(tmpPath); } catch { /* ignore */ }
       throw err;
     }
   }).catch(err => {
@@ -336,12 +342,12 @@ const users = {
     if (!db.users) {
       db.users = [];
     }
-    
+
     // Check if username already exists
     if (db.users.some(u => u.username === userData.username)) {
       throw new Error('Username already exists');
     }
-    
+
     const newUser = {
       id: db.nextId++,
       username: userData.username,
@@ -349,10 +355,10 @@ const users = {
       role: userData.role || 'viewer',
       createdAt: new Date().toISOString()
     };
-    
+
     db.users.push(newUser);
     await saveDb(db);
-    
+
     // Return user without password hash
     const { passwordHash, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
@@ -361,26 +367,26 @@ const users = {
   async update(id, updates) {
     const db = await loadDb();
     const userIndex = db.users?.findIndex(u => u.id === parseInt(id));
-    
+
     if (userIndex === -1 || userIndex === undefined) {
       throw new Error('User not found');
     }
-    
+
     // Check if username is being changed and if it already exists
     if (updates.username && updates.username !== db.users[userIndex].username) {
       if (db.users.some(u => u.username === updates.username)) {
         throw new Error('Username already exists');
       }
     }
-    
+
     db.users[userIndex] = {
       ...db.users[userIndex],
       ...updates,
       updatedAt: new Date().toISOString()
     };
-    
+
     await saveDb(db);
-    
+
     // Return user without password hash
     const { passwordHash, ...userWithoutPassword } = db.users[userIndex];
     return userWithoutPassword;
@@ -389,11 +395,11 @@ const users = {
   async delete(id) {
     const db = await loadDb();
     const userIndex = db.users?.findIndex(u => u.id === parseInt(id));
-    
+
     if (userIndex === -1 || userIndex === undefined) {
       throw new Error('User not found');
     }
-    
+
     // Prevent deleting the last admin
     const user = db.users[userIndex];
     if (user.role === 'admin') {
@@ -402,7 +408,7 @@ const users = {
         throw new Error('Cannot delete the last admin user');
       }
     }
-    
+
     db.users.splice(userIndex, 1);
     await saveDb(db);
     return true;
