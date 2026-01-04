@@ -338,7 +338,7 @@ class MoviesPage {
             // Get stream URL for movie using the actual container extension from API
             // Xtream API returns container_extension (e.g., 'mp4', 'mkv', 'avi')
             const container = movie.container_extension || 'mp4';
-            const result = await API.proxy.xtream.getStreamUrl(movie.sourceId, movie.stream_id, 'vod', container);
+            const result = await API.proxy.xtream.getStreamUrl(movie.sourceId, movie.stream_id, 'movie', container);
 
             if (result && result.url) {
                 // Navigate to home and play
