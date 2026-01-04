@@ -107,9 +107,15 @@ class App {
             });
         });
 
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', (e) => {
+            const page = e.state?.page || 'home';
+            this.navigateTo(page, false); // false = don't add to history
+        });
+
         // Initialize home page
         await this.pages.home.init();
-        this.navigateTo('home');
+        this.navigateTo('home', true); // true = replace history (don't add)
 
         console.log('NodeCast TV initialized');
     }
@@ -118,8 +124,8 @@ class App {
         const token = localStorage.getItem('authToken');
         
         if (!token) {
-            // No token, redirect to login
-            window.location.href = '/login.html';
+            // No token, redirect to login (replace to avoid back button issues)
+            window.location.replace('/login.html');
             return;
         }
         
@@ -151,7 +157,7 @@ class App {
         } catch (err) {
             console.error('Authentication error:', err);
             localStorage.removeItem('authToken');
-            window.location.href = '/login.html';
+            window.location.replace('/login.html');
         }
     }
 
@@ -184,13 +190,27 @@ class App {
             }
             
             localStorage.removeItem('authToken');
-            window.location.href = '/login.html';
+            window.location.replace('/login.html');
         });
         
         navbar.appendChild(logoutLink);
     }
 
-    navigateTo(pageName) {
+    navigateTo(pageName, replaceHistory = false) {
+        // Don't navigate if already on this page
+        if (this.currentPage === pageName && !replaceHistory) {
+            return;
+        }
+
+        // Update browser history
+        if (replaceHistory) {
+            // Replace current history entry (used on initial load)
+            history.replaceState({ page: pageName }, '', `#${pageName}`);
+        } else {
+            // Add new history entry
+            history.pushState({ page: pageName }, '', `#${pageName}`);
+        }
+
         // Update nav
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.toggle('active', link.dataset.page === pageName);

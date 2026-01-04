@@ -255,8 +255,8 @@
                 // Store token
                 localStorage.setItem('authToken', data.token);
 
-                // Redirect to main app
-                window.location.href = '/';
+                // Redirect to main app (replace history to prevent back button issues)
+                window.location.replace('/');
 
             } catch (err) {
                 errorMessage.textContent = err.message;
