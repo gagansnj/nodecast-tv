@@ -89,19 +89,21 @@ async function parse(input) {
     let currentInfo = null;
     let currentGroup = null;
 
-    let inputStream;
+    let lines;
+
     if (typeof input === 'string') {
-        inputStream = Readable.from([input]);
+        // Handle string input directly
+        lines = input.split(/\r?\n/);
     } else {
-        inputStream = input;
+        // Handle stream input
+        const rl = readline.createInterface({
+            input: input,
+            crlfDelay: Infinity
+        });
+        lines = rl;
     }
 
-    const rl = readline.createInterface({
-        input: inputStream,
-        crlfDelay: Infinity
-    });
-
-    for await (const line of rl) {
+    for await (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
 

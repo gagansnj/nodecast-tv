@@ -670,7 +670,8 @@ class ChannelList {
             tvgId: stream.epg_channel_id,
             tvgLogo: stream.stream_icon,
             groupId: `xtream_${sourceId}_${stream.category_id}`,
-            groupTitle: categories.find(c => c.category_id === stream.category_id)?.category_name || 'Uncategorized',
+            // Use string comparison to handle type mismatches (number vs string category_id)
+            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || 'Uncategorized',
             sourceId,
             sourceType: 'xtream'
         }));

@@ -1,34 +1,92 @@
 const express = require('express');
 const router = express.Router();
-const { hiddenItems } = require('../db');
+const { getDb } = require('../db/sqlite');
 
-// Get all hidden items
+// Helper to map API item types to DB types and tables
+function mapItemType(apiType) {
+    switch (apiType) {
+        case 'channel': return { table: 'playlist_items', type: 'live' };
+        case 'group': return { table: 'categories', type: 'live' };
+        case 'vod_category': return { table: 'categories', type: 'movie' };
+        case 'series_category': return { table: 'categories', type: 'series' };
+        case 'movie': return { table: 'playlist_items', type: 'movie' };
+        case 'series': return { table: 'playlist_items', type: 'series' };
+        default: return null;
+    }
+}
+
+// Get all hidden items (formatted like db.json for frontend compatibility)
 router.get('/hidden', async (req, res) => {
     try {
         const { sourceId } = req.query;
-        const items = await hiddenItems.getAll(sourceId ? parseInt(sourceId) : null);
-        res.json(items);
+        const db = getDb();
+
+        let hidden = [];
+        const resultFormat = (row, itemType) => ({
+            source_id: row.source_id,
+            item_type: itemType,
+            item_id: itemType.includes('category') || itemType === 'group' ? row.category_id : row.item_id
+        });
+
+        // Query Categories
+        let catQuery = `SELECT source_id, category_id, type FROM categories WHERE is_hidden = 1`;
+        let itemQuery = `SELECT source_id, item_id, type FROM playlist_items WHERE is_hidden = 1`;
+
+        const params = [];
+        if (sourceId) {
+            catQuery += ` AND source_id = ?`;
+            itemQuery += ` AND source_id = ?`;
+            const sid = parseInt(sourceId);
+            params.push(sid);
+        }
+
+        const hiddenCats = db.prepare(catQuery).all(...params);
+        const hiddenItems = db.prepare(itemQuery).all(...params);
+
+        hiddenCats.forEach(row => {
+            let apiType;
+            if (row.type === 'live') apiType = 'group';
+            else if (row.type === 'movie') apiType = 'vod_category';
+            else if (row.type === 'series') apiType = 'series_category';
+
+            if (apiType) hidden.push(resultFormat(row, apiType));
+        });
+
+        hiddenItems.forEach(row => {
+            let apiType;
+            if (row.type === 'live') apiType = 'channel';
+            else if (row.type === 'movie') apiType = 'movie';
+            else if (row.type === 'series') apiType = 'series';
+
+            if (apiType) hidden.push(resultFormat(row, apiType));
+        });
+
+        res.json(hidden);
     } catch (err) {
         console.error('Error getting hidden items:', err);
         res.status(500).json({ error: 'Failed to get hidden items' });
     }
 });
 
-// Hide a channel, group, or category
+// Hide item
 router.post('/hide', async (req, res) => {
     try {
         const { sourceId, itemType, itemId } = req.body;
+        const mapping = mapItemType(itemType);
 
-        if (!sourceId || !itemType || !itemId) {
-            return res.status(400).json({ error: 'sourceId, itemType, and itemId are required' });
-        }
+        if (!mapping) return res.status(400).json({ error: 'Invalid item type' });
 
-        const validTypes = ['channel', 'group', 'vod_category', 'series_category'];
-        if (!validTypes.includes(itemType)) {
-            return res.status(400).json({ error: `itemType must be one of: ${validTypes.join(', ')}` });
-        }
+        const db = getDb();
+        const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
 
-        await hiddenItems.hide(sourceId, itemType, itemId);
+        const stmt = db.prepare(`
+            UPDATE ${mapping.table} 
+            SET is_hidden = 1 
+            WHERE source_id = ? AND type = ? AND ${idCol} = ?
+        `);
+
+        stmt.run(sourceId, mapping.type, itemId);
+
         res.json({ success: true });
     } catch (err) {
         console.error('Error hiding item:', err);
@@ -36,16 +94,25 @@ router.post('/hide', async (req, res) => {
     }
 });
 
-// Show (unhide) a channel or group
+// Show item
 router.post('/show', async (req, res) => {
     try {
         const { sourceId, itemType, itemId } = req.body;
+        const mapping = mapItemType(itemType);
 
-        if (!sourceId || !itemType || !itemId) {
-            return res.status(400).json({ error: 'sourceId, itemType, and itemId are required' });
-        }
+        if (!mapping) return res.status(400).json({ error: 'Invalid item type' });
 
-        await hiddenItems.show(sourceId, itemType, itemId);
+        const db = getDb();
+        const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
+
+        const stmt = db.prepare(`
+            UPDATE ${mapping.table} 
+            SET is_hidden = 0 
+            WHERE source_id = ? AND type = ? AND ${idCol} = ?
+        `);
+
+        stmt.run(sourceId, mapping.type, itemId);
+
         res.json({ success: true });
     } catch (err) {
         console.error('Error showing item:', err);
@@ -53,56 +120,149 @@ router.post('/show', async (req, res) => {
     }
 });
 
-// Check if item is hidden
+// Check hidden status
 router.get('/hidden/check', async (req, res) => {
     try {
         const { sourceId, itemType, itemId } = req.query;
+        const mapping = mapItemType(itemType);
+        if (!mapping) return res.json({ hidden: false });
 
-        if (!sourceId || !itemType || !itemId) {
-            return res.status(400).json({ error: 'sourceId, itemType, and itemId are required' });
-        }
+        const db = getDb();
+        const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
 
-        // isHidden is now async
-        const isHidden = await hiddenItems.isHidden(parseInt(sourceId), itemType, itemId);
-        res.json({ hidden: isHidden });
+        const row = db.prepare(`
+            SELECT is_hidden FROM ${mapping.table} 
+            WHERE source_id = ? AND type = ? AND ${idCol} = ?
+        `).get(sourceId, mapping.type, itemId);
+
+        res.json({ hidden: !!(row && row.is_hidden) });
     } catch (err) {
-        console.error('Error checking hidden status:', err);
-        res.status(500).json({ error: 'Failed to check hidden status' });
+        console.error('Error checking hidden:', err);
+        res.status(500).json({ error: 'Failed to check status' });
     }
 });
 
-// Bulk hide channels and groups
+// Bulk Hide
 router.post('/hide/bulk', async (req, res) => {
     try {
         const { items } = req.body;
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
 
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'items array is required' });
-        }
+        const db = getDb();
+        const runBulk = db.transaction((list) => {
+            for (const item of list) {
+                const mapping = mapItemType(item.itemType);
+                if (mapping) {
+                    const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
+                    db.prepare(`
+                        UPDATE ${mapping.table} SET is_hidden = 1 
+                        WHERE source_id = ? AND type = ? AND ${idCol} = ?
+                    `).run(item.sourceId, mapping.type, item.itemId);
+                }
+            }
+        });
 
-        await hiddenItems.bulkHide(items);
+        runBulk(items);
         res.json({ success: true, count: items.length });
     } catch (err) {
-        console.error('Error bulk hiding items:', err);
-        res.status(500).json({ error: 'Failed to bulk hide items' });
+        if (err.code === 'SQLITE_BUSY') {
+            return res.status(503).json({ error: 'Database is busy, please try again' });
+        }
+        console.error('Error bulk hide:', err);
+        res.status(500).json({ error: 'Failed' });
     }
 });
 
-// Bulk show channels and groups
+// Bulk Show
 router.post('/show/bulk', async (req, res) => {
     try {
         const { items } = req.body;
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
 
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'items array is required' });
-        }
+        const db = getDb();
+        const runBulk = db.transaction((list) => {
+            for (const item of list) {
+                const mapping = mapItemType(item.itemType);
+                if (mapping) {
+                    const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
+                    db.prepare(`
+                        UPDATE ${mapping.table} SET is_hidden = 0 
+                        WHERE source_id = ? AND type = ? AND ${idCol} = ?
+                    `).run(item.sourceId, mapping.type, item.itemId);
+                }
+            }
+        });
 
-        await hiddenItems.bulkShow(items);
+        runBulk(items);
         res.json({ success: true, count: items.length });
     } catch (err) {
-        console.error('Error bulk showing items:', err);
-        res.status(500).json({ error: 'Failed to bulk show items' });
+        if (err.code === 'SQLITE_BUSY') {
+            return res.status(503).json({ error: 'Database is busy, please try again' });
+        }
+        console.error('Error bulk show:', err);
+        res.status(500).json({ error: 'Failed' });
+    }
+});
+
+// Show ALL items for a source (single SQL statement - much faster than bulk)
+router.post('/show/all', async (req, res) => {
+    try {
+        const { sourceId, contentType } = req.body;
+        if (!sourceId) return res.status(400).json({ error: 'sourceId required' });
+
+        const db = getDb();
+        let catCount = 0;
+        let itemCount = 0;
+
+        // Determine which types to update based on contentType
+        const types = contentType === 'movies' ? ['movie']
+            : contentType === 'series' ? ['series']
+                : ['live']; // default to channels
+
+        for (const type of types) {
+            const catResult = db.prepare(`UPDATE categories SET is_hidden = 0 WHERE source_id = ? AND type = ?`).run(sourceId, type);
+            const itemResult = db.prepare(`UPDATE playlist_items SET is_hidden = 0 WHERE source_id = ? AND type = ?`).run(sourceId, type);
+            catCount += catResult.changes;
+            itemCount += itemResult.changes;
+        }
+
+        console.log(`[Channels] Show all for source ${sourceId} (${contentType}): ${catCount} categories, ${itemCount} items`);
+        res.json({ success: true, categoriesUpdated: catCount, itemsUpdated: itemCount });
+    } catch (err) {
+        console.error('Error show all:', err);
+        res.status(500).json({ error: 'Failed to show all' });
+    }
+});
+
+// Hide ALL items for a source (single SQL statement - much faster than bulk)
+router.post('/hide/all', async (req, res) => {
+    try {
+        const { sourceId, contentType } = req.body;
+        if (!sourceId) return res.status(400).json({ error: 'sourceId required' });
+
+        const db = getDb();
+        let catCount = 0;
+        let itemCount = 0;
+
+        // Determine which types to update based on contentType
+        const types = contentType === 'movies' ? ['movie']
+            : contentType === 'series' ? ['series']
+                : ['live']; // default to channels
+
+        for (const type of types) {
+            const catResult = db.prepare(`UPDATE categories SET is_hidden = 1 WHERE source_id = ? AND type = ?`).run(sourceId, type);
+            const itemResult = db.prepare(`UPDATE playlist_items SET is_hidden = 1 WHERE source_id = ? AND type = ?`).run(sourceId, type);
+            catCount += catResult.changes;
+            itemCount += itemResult.changes;
+        }
+
+        console.log(`[Channels] Hide all for source ${sourceId} (${contentType}): ${catCount} categories, ${itemCount} items`);
+        res.json({ success: true, categoriesUpdated: catCount, itemsUpdated: itemCount });
+    } catch (err) {
+        console.error('Error hide all:', err);
+        res.status(500).json({ error: 'Failed to hide all' });
     }
 });
 
 module.exports = router;
+

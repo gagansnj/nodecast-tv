@@ -11,8 +11,9 @@ class SourceManager {
 
         // Content browser state
         this.contentType = 'channels'; // 'channels' or 'movies'
-        this.treeData = null; // { type, sourceId, groups: [{ id, name, items: [] }] }
-        this.hiddenSet = new Set(); // Set of hidden item keys
+        this.treeData = null; // { type, sourceId, groups: [{ id, name, categoryId, items: [] }] }
+        this.hiddenSet = new Set(); // Set of hidden item keys (current state)
+        this.originalHiddenSet = new Set(); // Set of hidden item keys (state when loaded)
         this.expandedGroups = new Set(); // Set of expanded group IDs
 
         this.init();
@@ -26,6 +27,26 @@ class SourceManager {
 
         // Initialize content browser
         this.initContentBrowser();
+
+        // Start polling sync status
+        this.pollSyncStatus();
+    }
+
+    /**
+     * Poll sync status from the backend
+     */
+    pollSyncStatus() {
+        // Implement polling logic here
+        console.log('Polling sync status...');
+        // Example: setInterval(() => this.updateSyncStatus(), 5000);
+    }
+
+    /**
+     * Update sync status display
+     */
+    updateSyncStatus() {
+        // Implement logic to update UI based on sync status
+        console.log('Updating sync status display...');
     }
 
     /**
@@ -298,6 +319,35 @@ class SourceManager {
                 if (icon) icon.classList.add('spin');
             }
 
+            // 1. Trigger Backend Sync
+            console.log(`[SourceManager] Triggering sync for source ${id}`);
+            await API.sources.sync(id);
+
+            // 2. Poll for completion
+            let retries = 0;
+            const maxRetries = 60; // 60 seconds timeout
+
+            while (retries < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000)); // Wait 1s
+                const statuses = await API.sources.getStatus();
+                const status = statuses.find(s => s.source_id === id && s.type === 'all');
+
+                if (status && status.status === 'success') {
+                    console.log('[SourceManager] Sync completed successfully');
+                    break;
+                } else if (status && status.status === 'error') {
+                    throw new Error(`Sync failed: ${status.error}`);
+                }
+
+                // If no status found yet, or still syncing, continue
+                retries++;
+            }
+
+            if (retries >= maxRetries) {
+                throw new Error('Sync timed out');
+            }
+
+            // 3. Refresh UI / Cache
             // Clear cache for this source first
             await API.proxy.cache.clear(id);
 
@@ -306,19 +356,19 @@ class SourceManager {
                 if (window.app?.epgGuide) {
                     await window.app.epgGuide.loadEpg(true);
                 }
-                alert('EPG data refreshed!');
+                alert('EPG data synced & refreshed!');
             } else if (type === 'xtream') {
                 // Re-fetch xtream data by reloading channels
                 if (window.app?.channelList) {
                     await window.app.channelList.loadChannels();
                 }
-                alert('Xtream data refreshed!');
+                alert('Xtream data synced & refreshed!');
             } else if (type === 'm3u') {
                 // Re-fetch M3U data by reloading channels
                 if (window.app?.channelList) {
                     await window.app.channelList.loadChannels();
                 }
-                alert('M3U playlist refreshed!');
+                alert('M3U playlist synced & refreshed!');
             }
 
             if (btn) {
@@ -441,57 +491,71 @@ class SourceManager {
 
             if (source.type === 'xtream') {
                 // Run sequentially to avoid overwhelming the provider
-                const categories = await API.proxy.xtream.liveCategories(sourceId);
-                const streams = await API.proxy.xtream.liveStreams(sourceId);
+                // Use includeHidden to show ALL items in the content manager
+                const categories = await API.proxy.xtream.liveCategories(sourceId, { includeHidden: true });
+                const streams = await API.proxy.xtream.liveStreams(sourceId, null, { includeHidden: true });
 
                 channels = streams;
                 categories.forEach(cat => {
                     categoryMap[cat.category_id] = cat.category_name;
                 });
             } else if (source.type === 'm3u') {
-                const m3uData = await API.proxy.m3u.get(sourceId);
+                const m3uData = await API.proxy.m3u.get(sourceId, { includeHidden: true });
                 channels = m3uData.channels || [];
             }
 
             // Get currently hidden items
             const hiddenItems = await API.channels.getHidden(sourceId);
             this.hiddenSet = new Set(hiddenItems.map(h => `${h.item_type}:${h.item_id}`));
+            this.originalHiddenSet = new Set(this.hiddenSet); // Track original state for diffing
 
-            // Group channels
-            const groups = {};
+            // Group channels by category
+            const groupMap = {}; // key: categoryId, value: { name, categoryId, items }
             channels.forEach(ch => {
                 let groupName = 'Uncategorized';
+                let categoryId = null;
                 if (source.type === 'xtream') {
-                    if (ch.category_id && categoryMap[ch.category_id]) {
-                        groupName = categoryMap[ch.category_id];
+                    categoryId = ch.category_id;
+                    if (categoryId && categoryMap[categoryId]) {
+                        groupName = categoryMap[categoryId];
                     }
                 } else {
+                    // For M3U, category_id might be the group name itself
                     groupName = ch.category_name || ch.groupTitle || 'Uncategorized';
+                    categoryId = groupName; // M3U uses name as ID
                 }
 
-                if (!groups[groupName]) {
-                    groups[groupName] = [];
+                const groupKey = categoryId || groupName;
+                if (!groupMap[groupKey]) {
+                    groupMap[groupKey] = {
+                        categoryId: categoryId,
+                        name: groupName,
+                        items: []
+                    };
                 }
 
                 // Normalize channel object
                 const channelId = ch.stream_id || ch.id || ch.url;
                 const channelName = ch.name || ch.tvgName || 'Unknown';
 
-                groups[groupName].push({
-                    id: channelId,
+                groupMap[groupKey].items.push({
+                    id: String(channelId),
                     name: channelName,
                     original: ch,
                     type: 'channel'
                 });
             });
 
-            // Convert to array
-            this.treeData.groups = Object.keys(groups).sort().map(name => ({
-                id: name, // generic group ID
-                name: name,
-                type: 'group',
-                items: groups[name]
-            }));
+            // Convert to array, sorted by name
+            this.treeData.groups = Object.entries(groupMap)
+                .sort((a, b) => a[1].name.localeCompare(b[1].name))
+                .map(([key, group]) => ({
+                    id: key, // Use categoryId as the group ID
+                    name: group.name,
+                    categoryId: group.categoryId, // Store actual category_id for API calls
+                    type: 'group',
+                    items: group.items
+                }));
 
             this.renderTree();
 
@@ -635,7 +699,7 @@ class SourceManager {
                 return;
             }
 
-            const categories = await API.proxy.xtream.vodCategories(sourceId);
+            const categories = await API.proxy.xtream.vodCategories(sourceId, { includeHidden: true });
 
             if (!categories || categories.length === 0) {
                 this.contentTree.innerHTML = '<p class="hint">No movie categories found</p>';
@@ -644,6 +708,7 @@ class SourceManager {
 
             const hiddenItems = await API.channels.getHidden(sourceId);
             this.hiddenSet = new Set(hiddenItems.map(h => `${h.item_type}:${h.item_id}`));
+            this.originalHiddenSet = new Set(this.hiddenSet); // Track original state
 
             // Create a single "Movies" group or flatten?
             // The original UI rendered a flat list of categories. 
@@ -659,7 +724,7 @@ class SourceManager {
                 name: 'Categories',
                 type: 'group',
                 items: categories.sort((a, b) => a.category_name.localeCompare(b.category_name)).map(cat => ({
-                    id: cat.category_id,
+                    id: String(cat.category_id),
                     name: cat.category_name,
                     type: 'vod_category',
                     original: cat
@@ -691,7 +756,7 @@ class SourceManager {
                 return;
             }
 
-            const categories = await API.proxy.xtream.seriesCategories(sourceId);
+            const categories = await API.proxy.xtream.seriesCategories(sourceId, { includeHidden: true });
 
             if (!categories || categories.length === 0) {
                 this.contentTree.innerHTML = '<p class="hint">No series categories found</p>';
@@ -700,13 +765,14 @@ class SourceManager {
 
             const hiddenItems = await API.channels.getHidden(sourceId);
             this.hiddenSet = new Set(hiddenItems.map(h => `${h.item_type}:${h.item_id}`));
+            this.originalHiddenSet = new Set(this.hiddenSet); // Track original state
 
             this.treeData.groups = [{
                 id: 'all_series_categories',
                 name: 'Categories',
                 type: 'group',
                 items: categories.sort((a, b) => a.category_name.localeCompare(b.category_name)).map(cat => ({
-                    id: cat.category_id,
+                    id: String(cat.category_id),
                     name: cat.category_name,
                     type: 'series_category',
                     original: cat
@@ -764,6 +830,24 @@ class SourceManager {
 
         const isChecked = groupCb.checked;
 
+        // Determine the correct item type for the group based on content type
+        let groupItemType = 'group'; // default for live channels
+        if (this.treeData.type === 'movies') {
+            groupItemType = 'vod_category';
+        } else if (this.treeData.type === 'series') {
+            groupItemType = 'series_category';
+        }
+
+        // Update state for the GROUP itself (if it has a categoryId)
+        if (group.categoryId) {
+            const groupKey = `${groupItemType}:${group.categoryId}`;
+            if (isChecked) {
+                this.hiddenSet.delete(groupKey);
+            } else {
+                this.hiddenSet.add(groupKey);
+            }
+        }
+
         // Update state for all children
         group.items.forEach(item => {
             const key = `${item.type}:${item.id}`;
@@ -784,25 +868,82 @@ class SourceManager {
     }
 
     /**
-     * Set visibility for all items (LOCAL STATE ONLY - use Save to persist)
+     * Set visibility for all items and IMMEDIATELY persist to server
+     * Uses fast bulk API endpoint (single SQL statement) instead of item-by-item
      */
-    setAllVisibility(visible) {
+    async setAllVisibility(visible) {
         if (!this.treeData || !this.treeData.groups) return;
 
-        // Update state for all items
-        this.treeData.groups.forEach(group => {
-            group.items.forEach(item => {
-                const key = `${item.type}:${item.id}`;
-                if (visible) {
-                    this.hiddenSet.delete(key);
-                } else {
-                    this.hiddenSet.add(key);
-                }
-            });
-        });
+        const saveBtn = document.getElementById('content-save');
+        const showAllBtn = document.querySelector('.content-actions button:first-child');
+        const hideAllBtn = document.querySelector('.content-actions button:nth-child(2)');
 
-        // Re-render to reflect changes
-        this.renderTree();
+        // Disable buttons during operation
+        if (showAllBtn) showAllBtn.disabled = true;
+        if (hideAllBtn) hideAllBtn.disabled = true;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = visible ? '⏳ Showing all...' : '⏳ Hiding all...';
+        }
+
+        try {
+            const sourceId = this.treeData.sourceId;
+            const contentType = this.treeData.type; // 'channels', 'movies', or 'series'
+
+            // Use fast API endpoint (single SQL UPDATE statement)
+            if (visible) {
+                await API.channels.showAll(sourceId, contentType);
+            } else {
+                await API.channels.hideAll(sourceId, contentType);
+            }
+
+            // Update local state to match
+            this.treeData.groups.forEach(group => {
+                group.items.forEach(item => {
+                    const key = `${item.type}:${item.id}`;
+                    if (visible) {
+                        this.hiddenSet.delete(key);
+                    } else {
+                        this.hiddenSet.add(key);
+                    }
+                });
+            });
+
+            // Update originalHiddenSet to match current state
+            this.originalHiddenSet = new Set(this.hiddenSet);
+
+            // Sync Channel List
+            try {
+                if (window.app?.channelList?.loadHiddenItems) {
+                    await window.app.channelList.loadHiddenItems();
+                    window.app.channelList.render();
+                }
+            } catch (e) {
+                console.warn('[SourceManager] Channel list sync failed:', e);
+            }
+
+            // Re-render to reflect changes
+            this.renderTree();
+
+            if (saveBtn) {
+                saveBtn.textContent = '✓ Done!';
+                setTimeout(() => {
+                    saveBtn.textContent = '💾 Save Changes';
+                    saveBtn.disabled = false;
+                }, 1500);
+            }
+
+        } catch (err) {
+            console.error('Error setting all visibility:', err);
+            alert('Failed: ' + err.message);
+            if (saveBtn) {
+                saveBtn.textContent = '💾 Save Changes';
+                saveBtn.disabled = false;
+            }
+        } finally {
+            if (showAllBtn) showAllBtn.disabled = false;
+            if (hideAllBtn) hideAllBtn.disabled = false;
+        }
     }
 
     /**
@@ -825,35 +966,122 @@ class SourceManager {
             const itemsToShow = [];
             const itemsToHide = [];
 
-            // Collect all items and determine their visibility
+            // Only collect items that have CHANGED from their original state
             this.treeData.groups.forEach(group => {
+                // First, handle the GROUP itself (category visibility)
+                // Determine the correct item type for the group based on content type
+                let groupItemType = 'group'; // default for live channels
+                if (this.treeData.type === 'movies') {
+                    groupItemType = 'vod_category';
+                } else if (this.treeData.type === 'series') {
+                    groupItemType = 'series_category';
+                }
+
+                // Only process groups that have a real categoryId (not wrapper groups like 'all_categories')
+                if (group.categoryId) {
+                    const groupKey = `${groupItemType}:${group.categoryId}`;
+                    const isGroupNowHidden = this.hiddenSet.has(groupKey);
+                    const wasGroupHidden = this.originalHiddenSet.has(groupKey);
+
+                    if (isGroupNowHidden !== wasGroupHidden) {
+                        if (isGroupNowHidden) {
+                            itemsToHide.push({ sourceId, itemType: groupItemType, itemId: String(group.categoryId) });
+                        } else {
+                            itemsToShow.push({ sourceId, itemType: groupItemType, itemId: String(group.categoryId) });
+                        }
+                    }
+                }
+
+                // Then handle the ITEMS within the group
                 group.items.forEach(item => {
                     const key = `${item.type}:${item.id}`;
-                    const isHidden = this.hiddenSet.has(key);
+                    const isNowHidden = this.hiddenSet.has(key);
+                    const wasHidden = this.originalHiddenSet.has(key);
 
-                    if (isHidden) {
-                        itemsToHide.push({ sourceId, itemType: item.type, itemId: item.id });
-                    } else {
-                        itemsToShow.push({ sourceId, itemType: item.type, itemId: item.id });
+                    // Only send if state changed
+                    if (isNowHidden !== wasHidden) {
+                        if (isNowHidden) {
+                            itemsToHide.push({ sourceId, itemType: item.type, itemId: String(item.id) });
+                        } else {
+                            itemsToShow.push({ sourceId, itemType: item.type, itemId: String(item.id) });
+                        }
                     }
                 });
             });
 
-            // Execute bulk operations
-            const promises = [];
+            // Check if there are any changes
+            if (itemsToShow.length === 0 && itemsToHide.length === 0) {
+                if (saveBtn) {
+                    saveBtn.textContent = 'No changes';
+                    setTimeout(() => {
+                        saveBtn.textContent = '💾 Save Changes';
+                        saveBtn.disabled = false;
+                    }, 1500);
+                }
+                return;
+            }
+
+            console.log(`[SourceManager] Saving changes: ${itemsToShow.length} to show, ${itemsToHide.length} to hide`);
+
+            if (itemsToHide.length > 0) {
+                console.log('[SourceManager] Items to hide:', itemsToHide.map(i => `${i.itemType}:${i.itemId}`));
+                // Check if any groups are being hidden
+                const hiddenGroups = itemsToHide.filter(i => i.itemType === 'group' || i.itemType.includes('category'));
+                if (hiddenGroups.length > 0) {
+                    console.warn('[SourceManager] WARNING: Hiding groups:', hiddenGroups);
+                }
+            }
+
+            // Batch large operations to avoid timeouts (1000 items per batch)
+            const BATCH_SIZE = 1000;
+
+            const processBatches = async (items, apiFn, label) => {
+                for (let i = 0; i < items.length; i += BATCH_SIZE) {
+                    const batch = items.slice(i, i + BATCH_SIZE);
+                    console.log(`[SourceManager] ${label}: batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(items.length / BATCH_SIZE)} (${batch.length} items)`);
+                    await apiFn(batch);
+
+                    // Update button with progress
+                    if (saveBtn) {
+                        const progress = Math.round(((i + batch.length) / items.length) * 100);
+                        saveBtn.textContent = `⏳ ${progress}%`;
+                    }
+                }
+            };
+
+            // Process show and hide operations sequentially to avoid overwhelming the server
             if (itemsToShow.length > 0) {
-                promises.push(API.channels.bulkShow(itemsToShow));
+                await processBatches(itemsToShow, API.channels.bulkShow, 'Showing');
             }
             if (itemsToHide.length > 0) {
-                promises.push(API.channels.bulkHide(itemsToHide));
+                await processBatches(itemsToHide, API.channels.bulkHide, 'Hiding');
             }
 
-            await Promise.all(promises);
+            console.log('[SourceManager] Bulk operations completed');
 
-            // Sync Channel List
-            if (window.app?.channelList) {
-                await window.app.channelList.loadHiddenItems();
-                window.app.channelList.render();
+            // Update originalHiddenSet to reflect saved state
+            this.originalHiddenSet = new Set(this.hiddenSet);
+
+            // Sync Channel List (don't block on this)
+            try {
+                if (window.app?.channelList) {
+                    // Start with hidden items sync which is fast
+                    if (window.app.channelList.loadHiddenItems) {
+                        await window.app.channelList.loadHiddenItems();
+                    }
+
+                    // If we modified the currently active source, reload it fully to get fresh categories
+                    if (window.app.channelList.currentSourceId &&
+                        String(window.app.channelList.currentSourceId) === String(this.contentSourceSelect.value)) {
+                        console.log('[SourceManager] Reloading active source in ChannelList...');
+                        await window.app.channelList.loadSource(window.app.channelList.currentSourceId);
+                    } else {
+                        // Otherwise just render to reflect hidden item changes
+                        window.app.channelList.render();
+                    }
+                }
+            } catch (e) {
+                console.warn('[SourceManager] Channel list sync failed:', e);
             }
 
             if (saveBtn) {
@@ -874,6 +1102,71 @@ class SourceManager {
         }
     }
 
+    /**
+     * Poll sync status periodically
+     */
+    async pollSyncStatus() {
+        const poll = async () => {
+            try {
+                const statuses = await API.sources.getStatus();
+                this.updateSyncStatus(statuses);
+            } catch (err) {
+                console.warn('Error polling sync status:', err);
+            }
+            // Poll every 3 seconds
+            this.syncPollTimeout = setTimeout(poll, 3000);
+        };
+        poll();
+    }
+
+    /**
+     * Update UI with sync status
+     */
+    updateSyncStatus(statuses) {
+        if (!statuses || !Array.isArray(statuses)) return;
+
+        // Reset all to normal state if not in status list (handled implicitly by iterating sources or statuses?)
+        // Better: iterate visible source items and check against statuses
+
+        document.querySelectorAll('.source-item').forEach(item => {
+            const id = parseInt(item.dataset.id);
+            const status = statuses.find(s => s.source_id === id); // We might have multiple statuses (live, vod, epg) for one source
+
+            // Just check if ANY sync is active/failed for this source
+            const sourceStatuses = statuses.filter(s => s.source_id === id);
+            const isSyncing = sourceStatuses.some(s => s.status === 'syncing');
+            const hasError = sourceStatuses.some(s => s.status === 'error');
+            const lastSync = sourceStatuses.map(s => s.last_sync).sort().pop();
+
+            const btn = item.querySelector('[data-action="refresh"]');
+            if (btn) {
+                const icon = btn.querySelector('.icon') || btn; // icon inside button or button content
+                // If syncing, spin the refresh icon
+                if (isSyncing) {
+                    btn.disabled = true;
+                    btn.classList.add('syncing'); // Custom style?
+                    // Ensure spin class is added (font awesome or similar)
+                    // The icon is usually SVH in `Icons.refresh`.
+                    // We can add a class to the SVG parent or button
+                    btn.innerHTML = `<span class="spin">${Icons.refresh}</span>`;
+                    btn.title = "Syncing...";
+                } else if (hasError) {
+                    btn.disabled = false;
+                    btn.innerHTML = Icons.refresh;
+                    btn.classList.remove('syncing');
+                    btn.title = "Sync Failed - Retry";
+                    // Maybe show error indicator?
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = Icons.refresh;
+                    btn.classList.remove('syncing');
+                    btn.title = lastSync ? `Last Sync: ${new Date(lastSync).toLocaleString()}` : "Refresh Data";
+                }
+            }
+
+            // Optional: Update status text/badge in .source-info
+        });
+    }
 }
 
 // Export

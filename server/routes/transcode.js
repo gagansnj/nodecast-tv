@@ -25,9 +25,10 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        // Low-latency startup: reduce probe/analyze time for faster first bytes
-        '-probesize', '32768',
-        '-analyzeduration', '500000', // 0.5 seconds - enough to detect audio
+        // Low-latency startup vs Reliability trade-off
+        // Increased to 5MB/10s to handle slow HLS manifests and streams with large headers
+        '-probesize', '5000000', // 5MB
+        '-analyzeduration', '10000000', // 10 seconds
         // Error resilience: discard corrupt packets, generate timestamps, ignore DTS, no buffering
         '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
         // Ignore errors in stream and continue

@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const passport = require('passport');
+const { migrateUserData } = require('./services/migrationService');
+const syncService = require('./services/syncService');
 
 // Initialize database
 require('./db');
@@ -74,6 +76,14 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`NodeCast TV server running on http://localhost:${PORT}`);
+
+    // Run migration after startup
+    // await migrateUserData();
+
+    // Trigger background sync with delay to allow server to settle
+    setTimeout(() => {
+        syncService.syncAll().catch(console.error);
+    }, 5000);
 });

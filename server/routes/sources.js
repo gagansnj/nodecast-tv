@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { sources } = require('../db');
 const xtreamApi = require('../services/xtreamApi');
+const syncService = require('../services/syncService');
 
 // Get all sources
 router.get('/', async (req, res) => {
@@ -16,6 +17,19 @@ router.get('/', async (req, res) => {
     } catch (err) {
         console.error('Error getting sources:', err);
         res.status(500).json({ error: 'Failed to get sources' });
+    }
+});
+
+// Get sync status for all sources
+router.get('/status', async (req, res) => {
+    try {
+        const { getDb } = require('../db/sqlite');
+        const db = getDb();
+        const statuses = db.prepare('SELECT * FROM sync_status').all();
+        res.json(statuses);
+    } catch (err) {
+        console.error('Error getting sync status:', err);
+        res.status(500).json({ error: 'Failed to get sync status' });
     }
 });
 
@@ -58,6 +72,8 @@ router.post('/', async (req, res) => {
         }
 
         const source = await sources.create({ type, name, url, username, password });
+        // Trigger Sync
+        syncService.syncSource(source.id).catch(console.error);
         res.status(201).json(source);
     } catch (err) {
         console.error('Error creating source:', err);
@@ -80,6 +96,8 @@ router.put('/:id', async (req, res) => {
             username: username !== undefined ? username : existing.username,
             password: password !== undefined ? password : existing.password
         });
+        // Trigger Sync (if critical fields changed? safely just trigger it)
+        syncService.syncSource(parseInt(req.params.id)).catch(console.error);
         res.json(updated);
     } catch (err) {
         console.error('Error updating source:', err);
@@ -109,10 +127,33 @@ router.post('/:id/toggle', async (req, res) => {
         if (!updated) {
             return res.status(404).json({ error: 'Source not found' });
         }
+
+        // If enabled, trigger sync
+        if (updated.enabled) {
+            syncService.syncSource(parseInt(req.params.id)).catch(console.error);
+        }
+
         res.json(updated);
     } catch (err) {
         console.error('Error toggling source:', err);
         res.status(500).json({ error: 'Failed to toggle source' });
+    }
+});
+
+// Manual Sync
+router.post('/:id/sync', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const source = await sources.getById(id);
+        if (!source) return res.status(404).json({ error: 'Source not found' });
+
+        // Trigger sync (async)
+        syncService.syncSource(id).catch(console.error);
+
+        res.json({ success: true, message: 'Sync started' });
+    } catch (err) {
+        console.error('Error starting sync:', err);
+        res.status(500).json({ error: 'Failed to start sync' });
     }
 });
 
