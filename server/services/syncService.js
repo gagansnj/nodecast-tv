@@ -40,19 +40,25 @@ class SyncService {
 
         const intervalMs = intervalHours * 60 * 60 * 1000;
 
-        // Don't restart if interval hasn't changed
+        // Don't restart if interval hasn't changed and timer exists
         if (this._currentInterval === intervalHours && this._syncTimer) {
+            console.log(`[Sync] Timer already running for ${intervalHours} hours, not restarting`);
             return;
         }
 
         // Clear existing timer
         this.stopSyncTimer();
 
+        const nextSyncTime = new Date(Date.now() + intervalMs);
         console.log(`[Sync] Starting server-side sync timer: every ${intervalHours} hours`);
+        console.log(`[Sync] Next scheduled sync at: ${nextSyncTime.toLocaleString()}`);
 
         this._syncTimer = setInterval(async () => {
             console.log('[Sync] Scheduled sync triggered');
             await this.syncAll();
+            // Log next sync time
+            const next = new Date(Date.now() + intervalMs);
+            console.log(`[Sync] Next scheduled sync at: ${next.toLocaleString()}`);
         }, intervalMs);
 
         this._currentInterval = intervalHours;
