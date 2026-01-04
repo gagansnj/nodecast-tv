@@ -29,8 +29,8 @@ router.get('/', (req, res) => {
         // Increased to 5MB/10s to handle slow HLS manifests and streams with large headers
         '-probesize', '5000000', // 5MB
         '-analyzeduration', '10000000', // 10 seconds
-        // Error resilience: discard corrupt packets, generate timestamps, ignore DTS, no buffering
-        '-fflags', '+genpts+discardcorrupt+igndts+nobuffer',
+        // Error resilience: generate timestamps, discard corrupt packets
+        '-fflags', '+genpts+discardcorrupt',
         // Ignore errors in stream and continue
         '-err_detect', 'ignore_err',
         // Limit max demux delay to prevent buffering issues with bad timestamps
