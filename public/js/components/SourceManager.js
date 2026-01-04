@@ -967,23 +967,22 @@ class SourceManager {
             const itemsToHide = [];
 
             // Only collect items that have CHANGED from their original state
-            this.treeData.groups.forEach(group => {
-                // First, handle the GROUP itself (category visibility)
-                // Determine the correct item type for the group based on content type
-                let groupItemType = 'group'; // default for live channels
-                if (this.treeData.type === 'movies') {
-                    groupItemType = 'vod_category';
-                } else if (this.treeData.type === 'series') {
-                    groupItemType = 'series_category';
-                }
+            // Track group changes for redundancy check
+            const changedGroups = new Map(); // categoryId -> isHidden
 
-                // Only process groups that have a real categoryId (not wrapper groups like 'all_categories')
+            // First pass: Identify all changed groups
+            this.treeData.groups.forEach(group => {
+                let groupItemType = 'group';
+                if (this.treeData.type === 'movies') groupItemType = 'vod_category';
+                else if (this.treeData.type === 'series') groupItemType = 'series_category';
+
                 if (group.categoryId) {
                     const groupKey = `${groupItemType}:${group.categoryId}`;
                     const isGroupNowHidden = this.hiddenSet.has(groupKey);
                     const wasGroupHidden = this.originalHiddenSet.has(groupKey);
 
                     if (isGroupNowHidden !== wasGroupHidden) {
+                        changedGroups.set(group.categoryId, isGroupNowHidden);
                         if (isGroupNowHidden) {
                             itemsToHide.push({ sourceId, itemType: groupItemType, itemId: String(group.categoryId) });
                         } else {
@@ -991,8 +990,13 @@ class SourceManager {
                         }
                     }
                 }
+            });
 
-                // Then handle the ITEMS within the group
+            // Second pass: Process items, skipping if redundant with group change
+            this.treeData.groups.forEach(group => {
+                const groupIsChanging = changedGroups.has(group.categoryId);
+                const groupNewState = changedGroups.get(group.categoryId); // true = hiding, false = showing
+
                 group.items.forEach(item => {
                     const key = `${item.type}:${item.id}`;
                     const isNowHidden = this.hiddenSet.has(key);
@@ -1000,6 +1004,13 @@ class SourceManager {
 
                     // Only send if state changed
                     if (isNowHidden !== wasHidden) {
+                        // Check for redundancy:
+                        // If group is changing to the SAME state as the item, skip the item
+                        // The backend cascade will handle it.
+                        if (groupIsChanging && groupNewState === isNowHidden) {
+                            return;
+                        }
+
                         if (isNowHidden) {
                             itemsToHide.push({ sourceId, itemType: item.type, itemId: String(item.id) });
                         } else {
@@ -1032,8 +1043,8 @@ class SourceManager {
                 }
             }
 
-            // Batch large operations to avoid timeouts (1000 items per batch)
-            const BATCH_SIZE = 1000;
+            // Batch large operations to avoid timeouts (5000 items per batch)
+            const BATCH_SIZE = 5000;
 
             const processBatches = async (items, apiFn, label) => {
                 for (let i = 0; i < items.length; i += BATCH_SIZE) {

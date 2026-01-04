@@ -149,15 +149,27 @@ router.post('/hide/bulk', async (req, res) => {
         if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
 
         const db = getDb();
+
+        // Prepare statements once
+        const hideCat = db.prepare('UPDATE categories SET is_hidden = 1 WHERE source_id = ? AND type = ? AND category_id = ?');
+        const hideItem = db.prepare('UPDATE playlist_items SET is_hidden = 1 WHERE source_id = ? AND type = ? AND item_id = ?');
+
+        // Cascading statements (hide all children of a category)
+        const hideCatChildren = db.prepare('UPDATE playlist_items SET is_hidden = 1 WHERE source_id = ? AND type = ? AND category_id = ?');
+
         const runBulk = db.transaction((list) => {
             for (const item of list) {
                 const mapping = mapItemType(item.itemType);
                 if (mapping) {
-                    const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
-                    db.prepare(`
-                        UPDATE ${mapping.table} SET is_hidden = 1 
-                        WHERE source_id = ? AND type = ? AND ${idCol} = ?
-                    `).run(item.sourceId, mapping.type, item.itemId);
+                    if (mapping.table === 'categories') {
+                        // Hide the category
+                        hideCat.run(item.sourceId, mapping.type, item.itemId);
+                        // Cascade to children
+                        hideCatChildren.run(item.sourceId, mapping.type, item.itemId);
+                    } else {
+                        // Hide individual item
+                        hideItem.run(item.sourceId, mapping.type, item.itemId);
+                    }
                 }
             }
         });
@@ -180,15 +192,27 @@ router.post('/show/bulk', async (req, res) => {
         if (!Array.isArray(items)) return res.status(400).json({ error: 'items array required' });
 
         const db = getDb();
+
+        // Prepare statements once
+        const showCat = db.prepare('UPDATE categories SET is_hidden = 0 WHERE source_id = ? AND type = ? AND category_id = ?');
+        const showItem = db.prepare('UPDATE playlist_items SET is_hidden = 0 WHERE source_id = ? AND type = ? AND item_id = ?');
+
+        // Cascading statements (show all children of a category)
+        const showCatChildren = db.prepare('UPDATE playlist_items SET is_hidden = 0 WHERE source_id = ? AND type = ? AND category_id = ?');
+
         const runBulk = db.transaction((list) => {
             for (const item of list) {
                 const mapping = mapItemType(item.itemType);
                 if (mapping) {
-                    const idCol = mapping.table === 'categories' ? 'category_id' : 'item_id';
-                    db.prepare(`
-                        UPDATE ${mapping.table} SET is_hidden = 0 
-                        WHERE source_id = ? AND type = ? AND ${idCol} = ?
-                    `).run(item.sourceId, mapping.type, item.itemId);
+                    if (mapping.table === 'categories') {
+                        // Show the category
+                        showCat.run(item.sourceId, mapping.type, item.itemId);
+                        // Cascade to children
+                        showCatChildren.run(item.sourceId, mapping.type, item.itemId);
+                    } else {
+                        // Show individual item
+                        showItem.run(item.sourceId, mapping.type, item.itemId);
+                    }
                 }
             }
         });
