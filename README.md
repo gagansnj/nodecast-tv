@@ -290,7 +290,7 @@ If you are using `acestream-docker-home` or similar tools, you **MUST** use the 
 
 - **Backend**: Node.js, Express
 - **Frontend**: Vanilla JavaScript (ES6+), CSS3
-- **Database**: JSON-based local storage (LowDB style)
+- **Database**: SQLite (via better-sqlite3) for high-performance data storage
 - **Streaming**: HLS.js for stream playback
 - **Audio Transcoding**: FFmpeg (optional, via ffmpeg-static)
 
@@ -307,9 +307,12 @@ nodecast-tv/
 │   └── index.html       # Main entry point
 ├── server/              # Backend server
 │   ├── routes/          # API Endpoints (proxy, transcode)
-│   ├── services/        # Playlist parsers & logic
-│   └── db.js            # Data persistence layer
-└── data/                # Persistent storage (playlists, settings)
+│   ├── services/        # Playlist parsers, SyncService, etc.
+│   ├── db/              # Database Logic
+│   │   ├── index.js     # Legacy DB Wrapper
+│   │   └── sqlite.js    # SQLite Connection & Schema
+│   └── index.js         # Server Entry Point
+└── data/                # Persistent storage (content.db, playlists)
 ```
 
 ## License
