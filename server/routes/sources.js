@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { sources } = require('../db');
+const { getDb } = require('../db/sqlite');
 const xtreamApi = require('../services/xtreamApi');
 const syncService = require('../services/syncService');
 
@@ -108,11 +109,29 @@ router.put('/:id', async (req, res) => {
 // Delete source
 router.delete('/:id', async (req, res) => {
     try {
-        const existing = await sources.getById(req.params.id);
+        const sourceId = parseInt(req.params.id);
+        const existing = await sources.getById(sourceId);
         if (!existing) {
             return res.status(404).json({ error: 'Source not found' });
         }
-        await sources.delete(req.params.id);
+
+        // Cascade delete: Clean up SQLite data for this source
+        const db = getDb();
+        const deleteCategories = db.prepare('DELETE FROM categories WHERE source_id = ?');
+        const deleteItems = db.prepare('DELETE FROM playlist_items WHERE source_id = ?');
+        const deleteEpg = db.prepare('DELETE FROM epg_programs WHERE source_id = ?');
+        const deleteSyncStatus = db.prepare('DELETE FROM sync_status WHERE source_id = ?');
+
+        const catResult = deleteCategories.run(sourceId);
+        const itemResult = deleteItems.run(sourceId);
+        const epgResult = deleteEpg.run(sourceId);
+        deleteSyncStatus.run(sourceId);
+
+        console.log(`[Source] Cascade delete for source ${sourceId}: ${catResult.changes} categories, ${itemResult.changes} items, ${epgResult.changes} EPG programs`);
+
+        // Delete source config and related hidden items (favorites handled by db.js)
+        await sources.delete(sourceId);
+
         res.json({ success: true });
     } catch (err) {
         console.error('Error deleting source:', err);

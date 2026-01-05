@@ -144,8 +144,9 @@ const sources = {
   async delete(id) {
     const db = await loadDb();
     db.sources = db.sources.filter(s => s.id !== parseInt(id));
-    // Also delete related hidden items
+    // Also delete related hidden items and favorites
     db.hiddenItems = db.hiddenItems.filter(h => h.source_id !== parseInt(id));
+    db.favorites = db.favorites.filter(f => f.source_id !== parseInt(id));
     await saveDb(db);
   },
 
