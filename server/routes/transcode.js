@@ -46,13 +46,12 @@ router.get('/', (req, res) => {
         '-c:v', 'copy',
         // Audio: Transcode to browser-compatible AAC
         '-c:a', 'aac',
-        '-ac', '2', // Downmix to stereo (fixes 5.1 surround issues)
         '-ar', '48000',
         '-b:a', '192k',
         // Handle async audio/video using async filter
         '-af', 'aresample=async=1:min_hard_comp=0.100000:first_pts=0',
         // Timestamp handling
-        '-vsync', 'passthrough',
+        '-fps_mode', 'passthrough',
         '-async', '1',
         '-max_muxing_queue_size', '2048',
         // Fragmented MP4 for streaming (browser-compatible)
