@@ -644,7 +644,9 @@ router.get('/stream', async (req, res) => {
             }
 
             // Forward some headers to be more "transparent" back to the origin
-            const isPluto = url.includes('pluto.tv');
+            // Pluto TV uses multiple domains for content delivery
+            const plutoDomains = ['pluto.tv', 'pluto.io', 'plutotv.net', 'siloh.pluto.tv', 'service-stitcher'];
+            const isPluto = plutoDomains.some(domain => url.includes(domain));
 
             const headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
