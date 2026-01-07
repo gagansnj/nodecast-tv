@@ -268,6 +268,17 @@ class WatchPage {
             this.hls.loadSource(finalUrl);
             this.hls.attachMedia(this.video);
 
+            // Listen for subtitle track updates
+            this.hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                console.log('[WatchPage] Subtitle tracks updated:', data.subtitleTracks);
+                // Wait a moment for native text tracks to populate
+                setTimeout(() => this.updateCaptionsTracks(), 100);
+            });
+
+            this.hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (event, data) => {
+                console.log('[WatchPage] Subtitle track switched:', data);
+            });
+
             this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 this.video.play().catch(e => {
                     if (e.name !== 'AbortError') console.error('[WatchPage] Autoplay error:', e);

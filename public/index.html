@@ -136,12 +136,7 @@
                   <h2 class="watch-title-overlay" id="player-channel-name"></h2>
                 </div>
 
-                <!-- Center: Large Play Button -->
-                <button class="watch-center-play" id="player-center-play">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </button>
+
 
                 <!-- Loading Spinner -->
                 <div class="watch-loading" id="player-loading">
@@ -177,6 +172,22 @@
                       </svg>
                     </button>
                     <input type="range" class="watch-volume" id="player-volume" min="0" max="100" value="80">
+
+                    <!-- Captions Button -->
+                    <div class="watch-captions-wrapper">
+                      <button class="watch-btn" id="player-captions-btn" title="Captions">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon">
+                          <path
+                            d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z" />
+                        </svg>
+                      </button>
+                      <div class="watch-captions-menu hidden" id="player-captions-menu">
+                        <div class="captions-menu-title">Subtitles</div>
+                        <div class="captions-menu-list" id="player-captions-list">
+                          <button class="captions-option active" data-index="-1">Off</button>
+                        </div>
+                      </div>
+                    </div>
 
                     <button class="watch-btn" id="btn-fullscreen" title="Fullscreen">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon">

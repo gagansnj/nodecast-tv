@@ -147,7 +147,6 @@ class VideoPlayer {
     initCustomControls() {
         // Elements
         this.controlsOverlay = document.getElementById('player-controls-overlay');
-        this.centerPlayBtn = document.getElementById('player-center-play');
         this.loadingSpinner = document.getElementById('player-loading');
 
         const btnPlay = document.getElementById('btn-play');
@@ -163,7 +162,6 @@ class VideoPlayer {
 
         // Initial State: Hide all overlay elements until content is loaded
         this.loadingSpinner?.classList.remove('show');
-        this.centerPlayBtn?.classList.remove('show');
         this.controlsOverlay?.classList.add('hidden');
 
         // Play/Pause toggle
@@ -180,17 +178,9 @@ class VideoPlayer {
             togglePlay();
         });
 
-        this.centerPlayBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            togglePlay();
-        });
-
         // Update play/pause UI
         const updatePlayUI = () => {
             const isPaused = this.video.paused;
-
-            // Center button
-            this.centerPlayBtn?.classList.toggle('show', isPaused);
 
             // Bottom bar button
             const iconPlay = btnPlay?.querySelector('.icon-play');
@@ -208,14 +198,10 @@ class VideoPlayer {
         // Loading spinner
         this.video.addEventListener('waiting', () => {
             this.loadingSpinner?.classList.add('show');
-            this.centerPlayBtn?.classList.remove('show');
         });
 
         this.video.addEventListener('canplay', () => {
             this.loadingSpinner?.classList.remove('show');
-            if (this.video.paused) {
-                this.centerPlayBtn?.classList.add('show');
-            }
         });
 
         // Mute/Volume
@@ -254,6 +240,26 @@ class VideoPlayer {
         });
 
         this.video.addEventListener('volumechange', updateVolumeUI);
+
+        // Captions
+        this.captionsBtn = document.getElementById('player-captions-btn');
+        this.captionsMenu = document.getElementById('player-captions-menu');
+        this.captionsList = document.getElementById('player-captions-list');
+        this.captionsMenuOpen = false;
+
+        this.captionsBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleCaptionsMenu();
+        });
+
+        // Close captions menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.captionsMenuOpen &&
+                !this.captionsMenu.contains(e.target) &&
+                !this.captionsBtn.contains(e.target)) {
+                this.closeCaptionsMenu();
+            }
+        });
 
         // Fullscreen
         btnFullscreen?.addEventListener('click', (e) => {
@@ -320,6 +326,100 @@ class VideoPlayer {
     }
 
 
+
+    /**
+     * Toggle captions menu visibility
+     */
+    toggleCaptionsMenu() {
+        if (!this.captionsMenu) return;
+
+        this.captionsMenuOpen = !this.captionsMenuOpen;
+
+        if (this.captionsMenuOpen) {
+            this.updateCaptionsTracks();
+            this.captionsMenu.classList.remove('hidden');
+        } else {
+            this.captionsMenu.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Close captions menu
+     */
+    closeCaptionsMenu() {
+        if (!this.captionsMenu) return;
+        this.captionsMenuOpen = false;
+        this.captionsMenu.classList.add('hidden');
+    }
+
+    /**
+     * Update available caption tracks in the menu
+     */
+    updateCaptionsTracks() {
+        if (!this.captionsList) return;
+
+        // Clear existing list (keep only Off option)
+        this.captionsList.innerHTML = '<button class="captions-option" data-index="-1">Off</button>';
+
+        // Add tracks
+        if (this.video.textTracks && this.video.textTracks.length > 0) {
+            let hasActiveTrack = false;
+
+            for (let i = 0; i < this.video.textTracks.length; i++) {
+                const track = this.video.textTracks[i];
+                const btn = document.createElement('button');
+                btn.className = 'captions-option';
+                btn.textContent = track.label || `Track ${i + 1} (${track.language || 'unknown'})`;
+                btn.dataset.index = i;
+
+                if (track.mode === 'showing') {
+                    btn.classList.add('active');
+                    // Add checkmark
+                    btn.innerHTML += ' <span style="float: right;">✓</span>';
+                    hasActiveTrack = true;
+                }
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.selectCaptionTrack(i);
+                };
+
+                this.captionsList.appendChild(btn);
+            }
+
+            // Handle "Off" button state
+            const offBtn = this.captionsList.querySelector('[data-index="-1"]');
+            if (offBtn) {
+                if (!hasActiveTrack) {
+                    offBtn.classList.add('active');
+                    offBtn.innerHTML += ' <span style="float: right;">✓</span>';
+                }
+                offBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.selectCaptionTrack(-1);
+                };
+            }
+        }
+    }
+
+    /**
+     * Select a caption track
+     */
+    selectCaptionTrack(index) {
+        if (!this.video.textTracks) return;
+
+        // Turn off all tracks
+        for (let i = 0; i < this.video.textTracks.length; i++) {
+            this.video.textTracks[i].mode = 'hidden'; // or 'disabled'
+        }
+
+        // Turn on selected track
+        if (index >= 0 && index < this.video.textTracks.length) {
+            this.video.textTracks[index].mode = 'showing';
+        }
+
+        this.closeCaptionsMenu();
+    }
 
     init() {
         // Apply default/remembered volume
@@ -467,6 +567,17 @@ class VideoPlayer {
                         }
                     }
                 }
+            });
+
+            // Listen for subtitle track updates
+            this.hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                console.log('Subtitle tracks updated:', data.subtitleTracks);
+                // Wait a moment for native text tracks to populate
+                setTimeout(() => this.updateCaptionsTracks(), 100);
+            });
+
+            this.hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (event, data) => {
+                console.log('Subtitle track switched:', data);
             });
 
             this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -837,7 +948,6 @@ class VideoPlayer {
         this.overlay.classList.remove('hidden'); // Show "Select a channel"
         this.controlsOverlay?.classList.add('hidden'); // Hide controls
         this.loadingSpinner?.classList.remove('show');
-        this.centerPlayBtn?.classList.remove('show');
         this.nowPlaying.classList.add('hidden');
     }
 
