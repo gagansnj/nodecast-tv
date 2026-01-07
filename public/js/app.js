@@ -20,6 +20,7 @@ class App {
         this.pages.movies = new MoviesPage(this);
         this.pages.series = new SeriesPage(this);
         this.pages.settings = new SettingsPage(this);
+        this.pages.watch = new WatchPage(this);
 
         this.init();
     }
@@ -27,11 +28,11 @@ class App {
     async init() {
         // Check authentication first
         await this.checkAuth();
-        
+
         // Mobile menu toggle
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         const navbarMenu = document.getElementById('navbar-menu');
-        
+
         if (mobileMenuToggle && navbarMenu) {
             mobileMenuToggle.addEventListener('click', () => {
                 mobileMenuToggle.classList.toggle('active');
@@ -122,13 +123,13 @@ class App {
 
     async checkAuth() {
         const token = localStorage.getItem('authToken');
-        
+
         if (!token) {
             // No token, redirect to login (replace to avoid back button issues)
             window.location.replace('/login.html');
             return;
         }
-        
+
         try {
             // Verify token with server
             const response = await fetch('/api/auth/me', {
@@ -136,13 +137,13 @@ class App {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (!response.ok) {
                 throw new Error('Invalid token');
             }
-            
+
             this.currentUser = await response.json();
-            
+
             // Hide settings for viewers
             if (this.currentUser.role === 'viewer') {
                 const settingsLink = document.querySelector('.nav-link[data-page="settings"]');
@@ -150,10 +151,10 @@ class App {
                     settingsLink.style.display = 'none';
                 }
             }
-            
+
             // Add logout button to navbar
             this.addLogoutButton();
-            
+
         } catch (err) {
             console.error('Authentication error:', err);
             localStorage.removeItem('authToken');
@@ -164,7 +165,7 @@ class App {
     addLogoutButton() {
         const navbar = document.querySelector('.navbar-menu');
         if (!navbar || document.getElementById('logout-btn')) return;
-        
+
         const logoutLink = document.createElement('a');
         logoutLink.href = '#';
         logoutLink.className = 'nav-link';
@@ -175,10 +176,10 @@ class App {
             </svg></span>
             <span>Logout</span>
         `;
-        
+
         logoutLink.addEventListener('click', async (e) => {
             e.preventDefault();
-            
+
             const token = localStorage.getItem('authToken');
             if (token) {
                 await fetch('/api/auth/logout', {
@@ -188,11 +189,11 @@ class App {
                     }
                 });
             }
-            
+
             localStorage.removeItem('authToken');
             window.location.replace('/login.html');
         });
-        
+
         navbar.appendChild(logoutLink);
     }
 

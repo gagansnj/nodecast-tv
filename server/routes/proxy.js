@@ -84,13 +84,12 @@ router.get('/xtream/:sourceId', async (req, res) => {
 
         // Proxy auth check to upstream to ensure credentials are still valid
 
-
-        const cached = cache.get(`xtream:${source.id}:auth`);
+        const cached = cache.get('xtream', source.id, 'auth', 300000);
         if (cached) return res.json(cached);
 
         const api = xtreamApi.createFromSource(source);
         const data = await api.authenticate();
-        cache.set(`xtream:${source.id}:auth`, data, 300); // 5 min cache
+        cache.set('xtream', source.id, 'auth', data);
         res.json(data);
     } catch (err) {
         res.status(502).json({ error: 'Upstream error', details: err.message });
@@ -188,13 +187,13 @@ router.get('/xtream/:sourceId/series_info', async (req, res) => {
         const seriesId = req.query.series_id;
         if (!seriesId) return res.status(400).send('series_id required');
 
-        const cacheKey = `xtream:${source.id}:series_info:${seriesId}`;
-        const cached = cache.get(cacheKey);
+        const cacheKey = `series_info_${seriesId}`;
+        const cached = cache.get('xtream', source.id, cacheKey, 3600000);
         if (cached) return res.json(cached);
 
         const api = xtreamApi.createFromSource(source);
         const data = await api.getSeriesInfo(seriesId);
-        cache.set(cacheKey, data, 3600); // 1 hour
+        cache.set('xtream', source.id, cacheKey, data);
         res.json(data);
     } catch (err) {
         res.status(502).json({ error: 'Upstream error', details: err.message });
@@ -210,13 +209,13 @@ router.get('/xtream/:sourceId/vod_info', async (req, res) => {
         const vodId = req.query.vod_id;
         if (!vodId) return res.status(400).send('vod_id required');
 
-        const cacheKey = `xtream:${source.id}:vod_info:${vodId}`;
-        const cached = cache.get(cacheKey);
+        const cacheKey = `vod_info_${vodId}`;
+        const cached = cache.get('xtream', source.id, cacheKey, 3600000);
         if (cached) return res.json(cached);
 
         const api = xtreamApi.createFromSource(source);
         const data = await api.getVodInfo(vodId);
-        cache.set(cacheKey, data, 3600); // 1 hour
+        cache.set('xtream', source.id, cacheKey, data);
         res.json(data);
     } catch (err) {
         res.status(502).json({ error: 'Upstream error', details: err.message });

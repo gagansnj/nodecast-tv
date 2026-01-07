@@ -25,34 +25,40 @@ router.get('/', (req, res) => {
     const args = [
         '-hide_banner',
         '-loglevel', 'warning',
-        // Low-latency startup vs Reliability trade-off
-        // Increased to 5MB/10s to handle slow HLS manifests and streams with large headers
-        '-probesize', '5000000', // 5MB
-        '-analyzeduration', '10000000', // 10 seconds
+        // Faster startup - reduced probe/analyze for quicker first bytes
+        '-probesize', '2000000', // 2MB (reduced from 5MB)
+        '-analyzeduration', '3000000', // 3 seconds (reduced from 10s)
         // Error resilience: generate timestamps, discard corrupt packets
-        '-fflags', '+genpts+discardcorrupt',
+        '-fflags', '+genpts+discardcorrupt+nobuffer',
         // Ignore errors in stream and continue
         '-err_detect', 'ignore_err',
-        // Limit max demux delay to prevent buffering issues with bad timestamps
-        '-max_delay', '5000000',
+        // Limit max demux delay to prevent buffering issues
+        '-max_delay', '2000000',
         // Reconnect settings for network drops (useful for live streams)
         '-reconnect', '1',
         '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '5',
+        '-reconnect_delay_max', '3',
         '-i', url,
+        // Map only first video and audio stream (avoid subtitle streams causing issues)
+        '-map', '0:v:0',
+        '-map', '0:a:0?', // ? makes audio optional if not present
         // Video: passthrough (no re-encoding = fast!)
         '-c:v', 'copy',
-        // Audio: Transcode to browser-compatible AAC with consistent parameters
+        // Audio: Transcode to browser-compatible AAC
         '-c:a', 'aac',
+        '-ac', '2', // Downmix to stereo (fixes 5.1 surround issues)
         '-ar', '48000',
-        '-b:a', '256k', // Increased for surround sound
-        '-af', 'aresample=48000:async=1',
-        // Handle timestamp discontinuities at output
-        '-fps_mode', 'passthrough',
-        '-max_muxing_queue_size', '1024',
+        '-b:a', '192k',
+        // Handle async audio/video using async filter
+        '-af', 'aresample=async=1:min_hard_comp=0.100000:first_pts=0',
+        // Timestamp handling
+        '-vsync', 'passthrough',
+        '-async', '1',
+        '-max_muxing_queue_size', '2048',
         // Fragmented MP4 for streaming (browser-compatible)
         '-f', 'mp4',
-        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof+faststart',
+        '-flush_packets', '1', // Send data immediately
         '-' // Output to stdout
     ];
 

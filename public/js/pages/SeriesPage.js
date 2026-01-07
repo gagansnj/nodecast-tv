@@ -366,6 +366,9 @@ class SeriesPage {
                 return;
             }
 
+            // Store series info for WatchPage
+            this.currentSeriesInfo = info;
+
             // Render seasons and episodes
             let html = '';
             const seasons = Object.keys(info.episodes).sort((a, b) => parseInt(a) - parseInt(b));
@@ -420,26 +423,37 @@ class SeriesPage {
         const sourceId = parseInt(episodeEl.dataset.sourceId);
         const container = episodeEl.dataset.container || 'mp4';
 
+        // Get season and episode number from the episode element context
+        const seasonGroup = episodeEl.closest('.season-group');
+        const seasonHeader = seasonGroup?.querySelector('.season-name')?.textContent || '';
+        const seasonMatch = seasonHeader.match(/Season (\d+)/);
+        const seasonNum = seasonMatch ? seasonMatch[1] : '1';
+        const episodeNum = episodeEl.querySelector('.episode-number')?.textContent?.replace('E', '') || '1';
+
         try {
             // Get stream URL for episode (use 'series' type)
             const result = await API.proxy.xtream.getStreamUrl(sourceId, episodeId, 'series', container);
 
             if (result && result.url) {
-                // Navigate to home and play
-                this.app.navigateTo('home');
+                // Play in dedicated Watch page
+                if (this.app.pages.watch) {
+                    const episodeTitle = episodeEl.querySelector('.episode-title')?.textContent || `Episode ${episodeNum}`;
 
-                // Play the episode
-                if (this.app.player) {
-                    const episodeTitle = episodeEl.querySelector('.episode-title')?.textContent || 'Episode';
-                    const channel = {
-                        id: `episode:${episodeId}`,
-                        name: `${this.currentSeries?.name || 'Series'} - ${episodeTitle}`,
-                        sourceType: 'xtream',
+                    this.app.pages.watch.play({
+                        type: 'series',
+                        id: episodeId,
+                        title: this.currentSeries?.name || 'Series',
+                        subtitle: `S${seasonNum} E${episodeNum} - ${episodeTitle}`,
+                        poster: this.currentSeries?.cover,
+                        description: this.currentSeries?.plot || '',
+                        year: this.currentSeries?.year,
+                        rating: this.currentSeries?.rating,
                         sourceId: sourceId,
-                        isVod: true
-                    };
-
-                    this.app.player.play(channel, result.url);
+                        seriesId: this.currentSeries?.series_id,
+                        seriesInfo: this.currentSeriesInfo,
+                        currentSeason: seasonNum,
+                        currentEpisode: episodeNum
+                    }, result.url);
                 }
             }
         } catch (err) {
