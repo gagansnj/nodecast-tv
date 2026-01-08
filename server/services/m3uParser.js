@@ -175,4 +175,101 @@ async function fetchAndParse(url) {
     return parse(stream);
 }
 
-module.exports = { parse, parseExtinf, fetchAndParse };
+/**
+ * Parse M3U content as a streaming async generator (memory-efficient)
+ * Yields batches of channels to avoid loading entire playlist into memory.
+ * 
+ * @param {Readable|string} input - M3U content as Stream or String
+ * @param {number} batchSize - Number of channels per batch (default: 500)
+ * @yields {{ channels: Array, groups: Set, isLast: boolean }}
+ */
+async function* parseStreaming(input, batchSize = 500) {
+    const groupsSet = new Set();
+    let currentInfo = null;
+    let currentGroup = null;
+    let batch = [];
+
+    let lines;
+    if (typeof input === 'string') {
+        lines = input.split(/\r?\n/);
+    } else {
+        const rl = readline.createInterface({
+            input: input,
+            crlfDelay: Infinity
+        });
+        lines = rl;
+    }
+
+    for await (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        if (trimmed.startsWith('#EXTINF:')) {
+            currentInfo = parseExtinf(trimmed);
+            if (currentInfo.groupTitle) {
+                groupsSet.add(currentInfo.groupTitle);
+                currentGroup = currentInfo.groupTitle;
+            }
+        } else if (trimmed.startsWith('#EXTGRP:')) {
+            currentGroup = trimmed.substring(8).trim();
+            groupsSet.add(currentGroup);
+            if (currentInfo) {
+                currentInfo.groupTitle = currentGroup;
+            }
+        } else if (!trimmed.startsWith('#')) {
+            if (currentInfo) {
+                const groupTitle = currentInfo.groupTitle || currentGroup || 'Uncategorized';
+                const stableId = currentInfo.tvgId || generateStableId(currentInfo.name, groupTitle);
+
+                batch.push({
+                    ...currentInfo,
+                    id: stableId,
+                    url: trimmed,
+                    groupTitle: groupTitle
+                });
+                currentInfo = null;
+
+                // Yield batch when full
+                if (batch.length >= batchSize) {
+                    yield { channels: batch, groups: groupsSet, isLast: false };
+                    batch = [];
+                }
+            }
+        }
+    }
+
+    // Yield remaining channels
+    if (batch.length > 0) {
+        yield { channels: batch, groups: groupsSet, isLast: true };
+    } else {
+        // Yield empty final batch with isLast=true so caller knows we're done
+        yield { channels: [], groups: groupsSet, isLast: true };
+    }
+}
+
+/**
+ * Fetch and parse M3U from URL as streaming async generator (memory-efficient)
+ * @param {string} url - M3U playlist URL
+ * @param {number} batchSize - Number of channels per batch
+ * @yields {{ channels: Array, groups: Set, isLast: boolean }}
+ */
+async function* fetchAndParseStreaming(url, batchSize = 500) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch M3U: ${response.status} ${response.statusText}`);
+    }
+
+    let stream;
+    if (response.body && typeof response.body.pipe === 'function') {
+        stream = response.body;
+    } else if (response.body) {
+        stream = Readable.fromWeb(response.body);
+    } else {
+        stream = Readable.from([]);
+    }
+
+    yield* parseStreaming(stream, batchSize);
+}
+
+module.exports = { parse, parseExtinf, fetchAndParse, parseStreaming, fetchAndParseStreaming };
+

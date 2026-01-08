@@ -334,63 +334,36 @@ class SyncService {
 
 
     /**
-     * Sync EPG from URL
+     * Sync EPG from URL (Streaming - Memory Efficient)
+     * Processes EPG files in batches to avoid OOM on large EPG data
      */
     async syncEpgFromUrl(sourceId, url) {
-        // Use our streaming parser
-        const { channels, programmes } = await epgParser.fetchAndParse(url);
+        console.log(`[Sync] Fetching EPG from: ${url.substring(0, 60)}...`);
 
-        console.log(`[Sync] EPG Parsed: ${channels.length} channels, ${programmes.length} programs`);
+        // Temporary memory logging for verification
+        const logMemory = () => {
+            const used = process.memoryUsage();
+            console.log(`[Sync] Memory: ${Math.round(used.heapUsed / 1024 / 1024)}MB heap`);
+        };
+
+        logMemory();
 
         const db = getDb();
+        let allChannels = [];
+        let totalProgrammes = 0;
+        let batchCount = 0;
 
-        // 1. Save EPG Channels to playlist_items (for Name/Icon matching)
-
-        const channelStmt = db.prepare(`
-            INSERT INTO playlist_items (
-                id, source_id, item_id, type, name, stream_icon, 
-                stream_url, category_id, data
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                stream_icon = excluded.stream_icon,
-                data = excluded.data
-        `);
-
-        // Use transaction for channels
-        const insertChannels = db.transaction((chanList) => {
-            for (const ch of chanList) {
-                const id = `${sourceId}:${ch.id}`;
-                channelStmt.run(
-                    id,
-                    sourceId,
-                    ch.id, // XMLTV ID
-                    'epg_channel',
-                    ch.name,
-                    ch.icon || null,
-                    null, // No URL
-                    null, // No Category
-                    JSON.stringify(ch)
-                );
-            }
-        });
-
-        insertChannels(channels);
-        console.log(`[Sync] Saved ${channels.length} EPG channels`);
-
-        // 2. Save Programs
-        // First delete old programs for this source
+        // Clear old programmes first
         db.prepare('DELETE FROM epg_programs WHERE source_id = ?').run(sourceId);
 
-        const stmt = db.prepare(`
+        const programmeStmt = db.prepare(`
             INSERT INTO epg_programs (channel_id, source_id, start_time, end_time, title, description, data)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
-        const insertMany = db.transaction((progs) => {
+        const insertProgrammes = db.transaction((progs) => {
             for (const p of progs) {
-                stmt.run(
+                programmeStmt.run(
                     p.channelId,
                     sourceId,
                     p.start ? p.start.getTime() : 0,
@@ -402,50 +375,132 @@ class SyncService {
             }
         });
 
-        insertMany(programmes);
-        console.log(`[Sync] Saved ${programmes.length} programs`);
+        // Stream and process in batches (default 1000 programmes per batch)
+        for await (const batch of epgParser.fetchAndParseStreaming(url)) {
+            batchCount++;
+
+            // Collect channels from first batch
+            if (batch.channels) {
+                allChannels = batch.channels;
+            }
+
+            // Save this batch of programmes immediately
+            if (batch.programmes.length > 0) {
+                insertProgrammes(batch.programmes);
+                totalProgrammes += batch.programmes.length;
+            }
+
+            // Log progress every 10 batches
+            if (batchCount % 10 === 0) {
+                console.log(`[Sync] Processed ${totalProgrammes} programmes so far...`);
+                logMemory();
+            }
+
+            // Yield to event loop
+            await new Promise(resolve => setImmediate(resolve));
+        }
+
+        console.log(`[Sync] EPG Parsed: ${allChannels.length} channels, ${totalProgrammes} programmes`);
+        logMemory();
+
+        // Save EPG Channels
+        if (allChannels.length > 0) {
+            const channelStmt = db.prepare(`
+                INSERT INTO playlist_items (
+                    id, source_id, item_id, type, name, stream_icon, 
+                    stream_url, category_id, data
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    stream_icon = excluded.stream_icon,
+                    data = excluded.data
+            `);
+
+            const insertChannels = db.transaction((chanList) => {
+                for (const ch of chanList) {
+                    const id = `${sourceId}:${ch.id}`;
+                    channelStmt.run(
+                        id,
+                        sourceId,
+                        ch.id,
+                        'epg_channel',
+                        ch.name,
+                        ch.icon || null,
+                        null,
+                        null,
+                        JSON.stringify(ch)
+                    );
+                }
+            });
+
+            insertChannels(allChannels);
+            console.log(`[Sync] Saved ${allChannels.length} EPG channels`);
+        }
+
+        console.log(`[Sync] Saved ${totalProgrammes} programmes`);
     }
 
     /**
-     * M3U Sync Logic
-     */
-    /**
-     * M3U Sync Logic
+     * M3U Sync Logic (Streaming - Memory Efficient)
+     * Processes M3U files in batches to avoid OOM on large playlists
      */
     async syncM3u(source) {
         console.log(`[Sync] Fetching M3U playlist for ${source.name}`);
 
-        // Use the streaming parser directly to avoid loading entire file into memory
-        // This prevents OOM crashes on large playlists (100MB+)
-        const { channels, groups } = await m3uParser.fetchAndParse(source.url);
+        // Temporary memory logging for verification
+        const logMemory = () => {
+            const used = process.memoryUsage();
+            console.log(`[Sync] Memory: ${Math.round(used.heapUsed / 1024 / 1024)}MB heap`);
+        };
 
-        console.log(`[Sync] M3U Parsed: ${channels.length} channels, ${groups.length} groups`);
+        logMemory();
 
-        // Save Categories (Groups)
-        // M3U groups are just strings usually, we need to normalize them
-        const categories = groups.map(g => ({
-            category_id: g.name, // use name as ID for M3U groups
-            category_name: g.name,
+        const allGroups = new Set();
+        let totalChannels = 0;
+        let batchCount = 0;
+
+        // Stream and process in batches (default 500 channels per batch)
+        for await (const batch of m3uParser.fetchAndParseStreaming(source.url)) {
+            batchCount++;
+
+            // Map M3U channel format to our schema
+            const playlistItems = batch.channels.map(ch => ({
+                stream_id: ch.id,
+                name: ch.name,
+                category_id: ch.groupTitle || 'Uncategorized',
+                stream_icon: ch.tvgLogo,
+                stream_url: ch.url,
+            }));
+
+            // Save this batch immediately
+            if (playlistItems.length > 0) {
+                await this.saveStreams(source.id, 'live', playlistItems);
+                totalChannels += playlistItems.length;
+            }
+
+            // Collect groups for category creation at the end
+            batch.groups.forEach(g => allGroups.add(g));
+
+            // Log progress every 10 batches
+            if (batchCount % 10 === 0) {
+                console.log(`[Sync] Processed ${totalChannels} channels so far...`);
+                logMemory();
+            }
+        }
+
+        console.log(`[Sync] M3U Parsed: ${totalChannels} channels, ${allGroups.size} groups`);
+        logMemory();
+
+        // Save Categories (Groups) at the end
+        const categories = Array.from(allGroups).map(name => ({
+            category_id: name,
+            category_name: name,
             parent_id: null
         }));
 
         await this.saveCategories(source.id, 'live', categories);
-
-        // Save Channels
-        // Map M3U channel format to our schema
-        const playlistItems = channels.map(ch => ({
-            stream_id: ch.id, // parser generates a stable-ish ID
-            name: ch.name,
-            category_id: ch.groupTitle || 'Uncategorized',
-            stream_icon: ch.tvgLogo,
-            stream_url: ch.url,
-            // M3U doesn't usually have VOD metadata like rating/year easily accessible unless extended tags used
-            // We assume 'live' for now, but could detect VOD from URL extension?
-            // For now, treat all as type='live' for M3U or maybe check info?
-            // The parser doesn't differentiate types well yet.
-        }));
-
-        await this.saveStreams(source.id, 'live', playlistItems);
+        console.log(`[Sync] M3U sync complete for ${source.name}`);
     }
 
     /**
