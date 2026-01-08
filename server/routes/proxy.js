@@ -745,12 +745,16 @@ router.get('/stream', async (req, res) => {
                 manifest = manifest.split('\n').map(line => {
                     const trimmed = line.trim();
                     if (trimmed === '' || trimmed.startsWith('#')) {
-                        if (trimmed.includes('URI="')) {
-                            return line.replace(/URI="([^"]+)"/g, (match, p1) => {
+                        // Handle both URI="..." and URI='...' formats
+                        if (trimmed.includes('URI=')) {
+                            // Replace both double and single quoted URIs
+                            return line.replace(/URI=["']([^"']+)["']/g, (match, p1) => {
                                 try {
                                     const absoluteUrl = new URL(p1, baseUrl).href;
                                     return `URI="${req.protocol}://${req.get('host')}${req.baseUrl}/stream?url=${encodeURIComponent(absoluteUrl)}"`;
-                                } catch (e) { return match; }
+                                } catch (e) {
+                                    return match;
+                                }
                             });
                         }
                         return line;
@@ -771,19 +775,23 @@ router.get('/stream', async (req, res) => {
                 return res.send(manifest);
             }
 
-            // Binary content (Video Segment): Efficient Pipe
-            console.log(`[Proxy] Piping binary stream (${contentType})`);
+            // Binary content (Video Segment or Key): Collect and send
+            console.log(`[Proxy] Serving binary content (${contentType})`);
             res.set('Content-Type', contentType || 'application/octet-stream');
 
-            // Write the chunk we peeked
-            res.write(firstChunk);
+            // For small files (like encryption keys), collect all data and send at once
+            // This ensures proper Content-Length and response completion
+            const chunks = [firstChunk];
+            let result = await iterator.next();
+            while (!result.done) {
+                chunks.push(Buffer.from(result.value));
+                result = await iterator.next();
+            }
+            const fullContent = Buffer.concat(chunks);
 
-            // Stream the rest
-            // Create a readable stream from the iterator
-            const restOfStream = Readable.from(iterator);
-
-            // Pipe to response
-            restOfStream.pipe(res);
+            // Set Content-Length for proper client handling
+            res.set('Content-Length', fullContent.length);
+            res.send(fullContent);
             return; // Success - exit the retry loop
 
         } catch (err) {
