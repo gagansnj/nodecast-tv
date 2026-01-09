@@ -102,6 +102,10 @@ class WatchPage {
         // Fullscreen
         this.fullscreenBtn?.addEventListener('click', () => this.toggleFullscreen());
 
+        // Picture-in-Picture
+        const pipBtn = document.getElementById('watch-pip');
+        pipBtn?.addEventListener('click', () => this.togglePictureInPicture());
+
         // Progress bar
         this.progressSlider?.addEventListener('input', (e) => this.seek(e.target.value));
 
@@ -371,6 +375,21 @@ class WatchPage {
             container?.requestFullscreen?.() || container?.webkitRequestFullscreen?.();
         } else {
             document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        }
+    }
+
+    async togglePictureInPicture() {
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled && this.video.readyState >= 2) {
+                await this.video.requestPictureInPicture();
+            }
+        } catch (err) {
+            // Silently fail - Firefox users can use native PiP button
+            if (err.name !== 'NotAllowedError') {
+                console.error('Picture-in-Picture error:', err);
+            }
         }
     }
 

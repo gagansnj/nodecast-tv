@@ -267,6 +267,13 @@ class VideoPlayer {
             this.toggleFullscreen();
         });
 
+        // Picture-in-Picture
+        const btnPip = document.getElementById('btn-pip');
+        btnPip?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.togglePictureInPicture();
+        });
+
         this.container.addEventListener('dblclick', () => this.toggleFullscreen());
 
         // Overlay Auto-hide Logic
@@ -322,6 +329,24 @@ class VideoPlayer {
             this.container.requestFullscreen().catch(err => {
                 console.error('Fullscreen error:', err);
             });
+        }
+    }
+
+    /**
+     * Toggle Picture-in-Picture mode
+     */
+    async togglePictureInPicture() {
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (document.pictureInPictureEnabled && this.video.readyState >= 2) {
+                await this.video.requestPictureInPicture();
+            }
+        } catch (err) {
+            // Silently fail - Firefox users can use native PiP button
+            if (err.name !== 'NotAllowedError') {
+                console.error('Picture-in-Picture error:', err);
+            }
         }
     }
 

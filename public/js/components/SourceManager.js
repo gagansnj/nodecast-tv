@@ -15,6 +15,7 @@ class SourceManager {
         this.hiddenSet = new Set(); // Set of hidden item keys (current state)
         this.originalHiddenSet = new Set(); // Set of hidden item keys (state when loaded)
         this.expandedGroups = new Set(); // Set of expanded group IDs
+        this.searchQuery = ''; // Search filter for content browser
 
         this.init();
     }
@@ -426,6 +427,23 @@ class SourceManager {
 
         // Save Changes button
         document.getElementById('content-save')?.addEventListener('click', () => this.saveContentChanges());
+
+        // Search input
+        const searchInput = document.getElementById('content-search');
+        const searchClear = searchInput?.parentElement?.querySelector('.search-clear');
+
+        searchInput?.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase().trim();
+            this.renderTree();
+        });
+
+        searchClear?.addEventListener('click', () => {
+            if (searchInput) {
+                searchInput.value = '';
+                this.searchQuery = '';
+                this.renderTree();
+            }
+        });
     }
 
     /**
@@ -566,15 +584,44 @@ class SourceManager {
     }
 
     /**
+     * Get groups filtered by search query
+     */
+    getFilteredGroups() {
+        if (!this.treeData?.groups) return [];
+        if (!this.searchQuery) return this.treeData.groups;
+
+        return this.treeData.groups
+            .map(group => {
+                // Check if group name matches
+                const groupMatches = group.name.toLowerCase().includes(this.searchQuery);
+
+                // Filter items that match
+                const matchingItems = group.items.filter(item =>
+                    item.name.toLowerCase().includes(this.searchQuery)
+                );
+
+                // Include group if name matches OR has matching items
+                if (groupMatches || matchingItems.length > 0) {
+                    return { ...group, items: groupMatches ? group.items : matchingItems };
+                }
+                return null;
+            })
+            .filter(Boolean);
+    }
+
+    /**
      * Render the full tree based on current state
      */
     renderTree() {
-        if (!this.treeData || !this.treeData.groups.length) {
-            this.contentTree.innerHTML = '<p class="hint">No content found</p>';
+        const groups = this.getFilteredGroups();
+
+        if (!groups.length) {
+            const msg = this.searchQuery ? 'No matches found' : 'No content found';
+            this.contentTree.innerHTML = `<p class="hint">${msg}</p>`;
             return;
         }
 
-        const html = this.treeData.groups.map(group => this.getGroupHtml(group)).join('');
+        const html = groups.map(group => this.getGroupHtml(group)).join('');
         this.contentTree.innerHTML = html;
 
         // Attach event listeners
@@ -669,10 +716,11 @@ class SourceManager {
             this.expandedGroups.add(groupId);
         }
 
-        // Re-render only this group
+        // Re-render only this group - use filtered groups to respect search
         const groupEl = this.contentTree.querySelector(`.content-group[data-group-id="${CSS.escape(groupId)}"]`);
         if (groupEl) {
-            const group = this.treeData.groups.find(g => g.id === groupId);
+            const filteredGroups = this.getFilteredGroups();
+            const group = filteredGroups.find(g => g.id === groupId);
             if (group) {
                 const newHtml = this.getGroupHtml(group);
                 groupEl.outerHTML = newHtml;
