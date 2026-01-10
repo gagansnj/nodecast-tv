@@ -339,7 +339,7 @@ router.get('/epg/:sourceId', async (req, res) => {
             start: new Date(p.start_time).toISOString(), // EpgGuide parse this back
             stop: new Date(p.end_time).toISOString(),
             title: p.title,
-            desc: p.description
+            description: p.description
         }));
 
         // Fetch EPG channels from playlist_items (type='epg_channel')

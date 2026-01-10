@@ -301,7 +301,7 @@ class EpgGuide {
             title: current.title,
             start: current.start,
             stop: current.stop,
-            desc: current.desc
+            description: current.description
         } : null;
     }
 
