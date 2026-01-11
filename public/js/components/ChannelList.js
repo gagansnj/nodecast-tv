@@ -660,7 +660,7 @@ class ChannelList {
             sourceType: 'xtream'
         }));
 
-        this.groups.push(...categoryGroups);
+        this.groups = this.groups.concat(categoryGroups);
 
         // Map streams to channels
         const channelList = streams.map(stream => ({
@@ -687,7 +687,7 @@ class ChannelList {
             }
         }
 
-        this.channels.push(...uniqueChannels);
+        this.channels = this.channels.concat(uniqueChannels);
     }
 
     /**
@@ -709,7 +709,7 @@ class ChannelList {
             sourceType: 'm3u'
         }));
 
-        this.groups.push(...m3uGroups);
+        this.groups = this.groups.concat(m3uGroups);
 
         // Add channels - use the stable id from the server
         const channelList = data.channels.map(ch => ({
@@ -724,7 +724,7 @@ class ChannelList {
             sourceType: 'm3u'
         }));
 
-        this.channels.push(...channelList);
+        this.channels = this.channels.concat(channelList);
     }
 
     /**
