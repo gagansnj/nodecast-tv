@@ -70,7 +70,9 @@ function getStreamsFromDb(sourceId, type, categoryId = null, includeHidden = fal
             added: item.added_at,
             rating: item.rating,
             container_extension: item.container_extension,
-            category_id: item.category_id
+            category_id: item.category_id,
+            // Normalize EPG channel ID: Xtream uses epg_channel_id, M3U uses tvgId
+            epg_channel_id: data.epg_channel_id || data.tvgId || null
         };
     });
 }
