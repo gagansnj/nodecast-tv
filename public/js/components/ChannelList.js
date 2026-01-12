@@ -812,6 +812,7 @@ class ChannelList {
 
     /**
      * Load M3U channels
+     * Now uses unified Xtream-style API endpoints (backend supports both source types)
      */
     async loadM3uChannels(sourceId, append = false) {
         if (!append) {
@@ -819,27 +820,30 @@ class ChannelList {
             this.groups = [];
         }
 
-        const data = await API.proxy.m3u.get(sourceId);
+        // Use Xtream API endpoints - backend now supports M3U sources too
+        const categories = await API.proxy.xtream.liveCategories(sourceId);
+        const streams = await API.proxy.xtream.liveStreams(sourceId);
 
-        // Add groups
-        const m3uGroups = data.groups.map(g => ({
-            ...g,
-            id: `m3u_${sourceId}_${g.id}`,
+        // Map categories to groups (keeping m3u sourceType for downstream compatibility)
+        const m3uGroups = categories.map(cat => ({
+            id: `m3u_${sourceId}_${cat.category_id}`,
+            name: cat.category_name,
             sourceId,
             sourceType: 'm3u'
         }));
 
         this.groups = this.groups.concat(m3uGroups);
 
-        // Add channels - use the stable id from the server
-        const channelList = data.channels.map(ch => ({
-            ...ch,
-            // Use the stable id provided by the server (from tvgId or hash)
-            // Prefix with sourceId to ensure global uniqueness across multiple M3U sources
-            id: `m3u_${sourceId}_${ch.id}`,
-            // Keep original ID as streamId if needed (or just use original ID for reference)
-            streamId: ch.id,
-            groupId: `m3u_${sourceId}_group_${data.groups.findIndex(g => g.name === ch.groupTitle)}`,
+        // Map streams to channels
+        const channelList = streams.map(stream => ({
+            id: `m3u_${sourceId}_${stream.stream_id}`,
+            streamId: stream.stream_id,
+            name: stream.name,
+            tvgId: stream.epg_channel_id,
+            tvgLogo: stream.stream_icon,
+            url: stream.stream_url, // M3U has direct URLs
+            groupId: `m3u_${sourceId}_${stream.category_id}`,
+            groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || 'Uncategorized',
             sourceId,
             sourceType: 'm3u'
         }));
