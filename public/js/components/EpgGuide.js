@@ -17,7 +17,7 @@ class EpgGuide {
         this.programmes = [];
         this.currentDate = new Date();
         this.timeOffset = 0; // Hours offset from now
-        this.pixelsPerMinute = 3.5; // Width scaling
+        this.pixelsPerMinute = 6.67; // Width scaling (30min = 200px)
         this.favorites = new Set(); // Set<"sourceId:channelId">
         this.selectedGroup = 'Favorites'; // Default to Favorites
 
