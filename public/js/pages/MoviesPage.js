@@ -27,9 +27,9 @@ class MoviesPage {
 
     init() {
         // Source change handler
-        this.sourceSelect?.addEventListener('change', () => {
-            this.loadCategories();
-            this.loadMovies();
+        this.sourceSelect?.addEventListener('change', async () => {
+            await this.loadCategories();
+            await this.loadMovies();
         });
 
         // Category change handler

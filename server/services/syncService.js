@@ -252,10 +252,15 @@ class SyncService {
 
     /**
      * Batch save streams (channels, vod, series)
+     * Also purges stale entries that no longer exist in the source
      */
     async saveStreams(sourceId, type, items) {
         if (!items || items.length === 0) return;
         const db = getDb();
+
+        // Collect all IDs we're syncing
+        const syncedIds = new Set();
+
         const stmt = db.prepare(`
             INSERT INTO playlist_items (
                 id, source_id, item_id, type, name, category_id, 
@@ -302,6 +307,7 @@ class SyncService {
                 }
 
                 const id = `${sourceId}:${itemId}`;
+                syncedIds.add(id);
 
                 stmt.run(
                     id,
@@ -327,6 +333,32 @@ class SyncService {
             insertBatch(items.slice(i, i + BATCH_SIZE));
             // Yield to event loop between batches to allow other requests
             await new Promise(resolve => setImmediate(resolve));
+        }
+
+        // Purge stale entries that no longer exist in the source
+        // Use temp table approach to avoid SQL parameter limits with large playlists
+        if (syncedIds.size > 0) {
+            db.exec('CREATE TEMP TABLE IF NOT EXISTS synced_ids (id TEXT PRIMARY KEY)');
+            db.exec('DELETE FROM synced_ids');
+
+            const insertTemp = db.prepare('INSERT OR IGNORE INTO synced_ids (id) VALUES (?)');
+            const insertTempBatch = db.transaction((ids) => {
+                for (const id of ids) {
+                    insertTemp.run(id);
+                }
+            });
+            insertTempBatch([...syncedIds]);
+
+            const deleteStmt = db.prepare(`
+                DELETE FROM playlist_items 
+                WHERE source_id = ? AND type = ? 
+                AND id NOT IN (SELECT id FROM synced_ids)
+            `);
+            const deleted = deleteStmt.run(sourceId, type);
+
+            if (deleted.changes > 0) {
+                console.log(`[Sync] Purged ${deleted.changes} stale ${type} items`);
+            }
         }
 
         console.log(`[Sync] Saved ${items.length} ${type} items`);

@@ -31,9 +31,9 @@ class SeriesPage {
 
     init() {
         // Source change handler
-        this.sourceSelect?.addEventListener('change', () => {
-            this.loadCategories();
-            this.loadSeries();
+        this.sourceSelect?.addEventListener('change', async () => {
+            await this.loadCategories();
+            await this.loadSeries();
         });
 
         // Category change handler
