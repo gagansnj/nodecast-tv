@@ -279,13 +279,13 @@ class SyncService {
 
                 if (type === 'live') {
                     itemId = item.stream_id;
-                    name = item.name;
+                    name = item.name || `Channel ${item.stream_id}`;
                     catId = item.category_id;
                     icon = item.stream_icon;
                     added = item.added;
                 } else if (type === 'movie') {
                     itemId = item.stream_id;
-                    name = item.name;
+                    name = item.name || `Movie ${item.stream_id}`;
                     catId = item.category_id;
                     icon = item.stream_icon; // or cover
                     container = item.container_extension;
@@ -293,7 +293,7 @@ class SyncService {
                     added = item.added;
                 } else if (type === 'series') {
                     itemId = item.series_id;
-                    name = item.name;
+                    name = item.name || `Series ${item.series_id}`;
                     catId = item.category_id;
                     icon = item.cover;
                     rating = item.rating;
