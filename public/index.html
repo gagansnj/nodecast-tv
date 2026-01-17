@@ -502,6 +502,21 @@
           <!-- Transcoding Tab -->
           <div id="tab-transcode" class="tab-content">
             <div class="settings-section">
+              <h3>Network</h3>
+              <div class="setting-item">
+                <label class="setting-toggle">
+                  <input type="checkbox" id="setting-force-proxy-tc">
+                  <span class="toggle-slider"></span>
+                </label>
+                <div class="setting-info">
+                  <span class="setting-label">Force Backend Proxy</span>
+                  <span class="setting-hint">Route all streams through the server to bypass CORS restrictions. Enable
+                    if streams don't play directly.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
               <h3>Detected Hardware</h3>
               <div id="hw-info-container" class="hw-info-container">
                 <p class="hint">Loading hardware information...</p>
@@ -528,7 +543,8 @@
               <div class="setting-item">
                 <div class="setting-info" style="flex: 1;">
                   <span class="setting-label">Max Resolution</span>
-                  <span class="setting-hint">Limit transcoded output resolution. Lower = faster, more compatible.</span>
+                  <span class="setting-hint">Limit transcoded output resolution. Lower = faster, more
+                    compatible.</span>
                 </div>
                 <select id="setting-max-resolution" class="source-select" style="width: auto; min-width: 200px;">
                   <option value="4k">4K (2160p)</option>
@@ -568,17 +584,6 @@
               <h3>Stream Processing</h3>
               <div class="setting-item">
                 <label class="setting-toggle">
-                  <input type="checkbox" id="setting-force-proxy-tc">
-                  <span class="toggle-slider"></span>
-                </label>
-                <div class="setting-info">
-                  <span class="setting-label">Force Backend Proxy</span>
-                  <span class="setting-hint">Route all streams through the proxy server. Enable if streams don't play
-                    directly.</span>
-                </div>
-              </div>
-              <div class="setting-item">
-                <label class="setting-toggle">
                   <input type="checkbox" id="setting-auto-transcode-tc">
                   <span class="toggle-slider"></span>
                 </label>
@@ -606,7 +611,8 @@
                 </label>
                 <div class="setting-info">
                   <span class="setting-label">Force Video Transcode</span>
-                  <span class="setting-hint">Force full video transcoding (burn-in subtitles, incompatible video). Uses
+                  <span class="setting-hint">Force full video transcoding (burn-in subtitles, incompatible video).
+                    Uses
                     HW encoder.</span>
                 </div>
               </div>
