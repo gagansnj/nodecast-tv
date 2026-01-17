@@ -71,6 +71,10 @@ function getDefaultSettings() {
     // User-Agent settings
     userAgentPreset: 'chrome',    // chrome | vlc | tivimate | custom
     userAgentCustom: '',          // Custom UA string when preset is 'custom'
+    // Transcoding settings
+    hwEncoder: 'auto',            // auto | nvenc | amf | qsv | vaapi | software
+    maxResolution: '1080p',       // 4k | 1080p | 720p | 480p
+    quality: 'medium',            // high | medium | low
     // Probe cache settings  
     probeCacheTTL: 300,           // 5 minutes for URL probe cache
     seriesProbeCacheDays: 7       // 7 days for series episode probe cache

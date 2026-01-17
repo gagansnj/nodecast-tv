@@ -20,6 +20,9 @@ class SettingsPage {
         // Player settings
         this.initPlayerSettings();
 
+        // Transcoding settings
+        this.initTranscodingSettings();
+
         // User management (admin only)
         this.initUserManagement();
     }
@@ -31,10 +34,6 @@ class SettingsPage {
         const volumeValueDisplay = document.getElementById('volume-value');
         const rememberVolumeToggle = document.getElementById('setting-remember-volume');
         const autoPlayNextToggle = document.getElementById('setting-autoplay-next');
-        const forceProxyToggle = document.getElementById('setting-force-proxy');
-        const forceTranscodeToggle = document.getElementById('setting-force-transcode');
-        const forceRemuxToggle = document.getElementById('setting-force-remux');
-        const autoTranscodeToggle = document.getElementById('setting-auto-transcode');
 
         // Load current settings
         if (this.app.player?.settings) {
@@ -44,18 +43,6 @@ class SettingsPage {
             volumeValueDisplay.textContent = this.app.player.settings.defaultVolume + '%';
             rememberVolumeToggle.checked = this.app.player.settings.rememberVolume;
             autoPlayNextToggle.checked = this.app.player.settings.autoPlayNextEpisode;
-            if (forceProxyToggle) {
-                forceProxyToggle.checked = this.app.player.settings.forceProxy || false;
-            }
-            if (forceTranscodeToggle) {
-                forceTranscodeToggle.checked = this.app.player.settings.forceTranscode || false;
-            }
-            if (forceRemuxToggle) {
-                forceRemuxToggle.checked = this.app.player.settings.forceRemux || false;
-            }
-            if (autoTranscodeToggle) {
-                autoTranscodeToggle.checked = this.app.player.settings.autoTranscode || false;
-            }
         }
 
         // Arrow keys toggle
@@ -66,53 +53,27 @@ class SettingsPage {
 
         // Overlay duration
         overlayDurationInput.addEventListener('change', () => {
-            const value = Math.min(30, Math.max(1, parseInt(overlayDurationInput.value) || 5));
-            overlayDurationInput.value = value;
-            this.app.player.settings.overlayDuration = value;
+            this.app.player.settings.overlayDuration = parseInt(overlayDurationInput.value) || 5;
             this.app.player.saveSettings();
         });
 
         // Default volume slider
-        defaultVolumeSlider?.addEventListener('input', () => {
-            const value = parseInt(defaultVolumeSlider.value);
+        defaultVolumeSlider.addEventListener('input', () => {
+            const value = defaultVolumeSlider.value;
             volumeValueDisplay.textContent = value + '%';
-            this.app.player.settings.defaultVolume = value;
+            this.app.player.settings.defaultVolume = parseInt(value);
             this.app.player.saveSettings();
         });
 
         // Remember volume toggle
-        rememberVolumeToggle?.addEventListener('change', () => {
+        rememberVolumeToggle.addEventListener('change', () => {
             this.app.player.settings.rememberVolume = rememberVolumeToggle.checked;
             this.app.player.saveSettings();
         });
 
         // Auto-play next episode toggle
-        autoPlayNextToggle?.addEventListener('change', () => {
+        autoPlayNextToggle.addEventListener('change', () => {
             this.app.player.settings.autoPlayNextEpisode = autoPlayNextToggle.checked;
-            this.app.player.saveSettings();
-        });
-
-        // Force proxy toggle
-        forceProxyToggle?.addEventListener('change', () => {
-            this.app.player.settings.forceProxy = forceProxyToggle.checked;
-            this.app.player.saveSettings();
-        });
-
-        // Force transcode toggle
-        forceTranscodeToggle?.addEventListener('change', () => {
-            this.app.player.settings.forceTranscode = forceTranscodeToggle.checked;
-            this.app.player.saveSettings();
-        });
-
-        // Force remux toggle
-        forceRemuxToggle?.addEventListener('change', () => {
-            this.app.player.settings.forceRemux = forceRemuxToggle.checked;
-            this.app.player.saveSettings();
-        });
-
-        // Auto transcode (smart) toggle
-        autoTranscodeToggle?.addEventListener('change', () => {
-            this.app.player.settings.autoTranscode = autoTranscodeToggle.checked;
             this.app.player.saveSettings();
         });
 
@@ -126,57 +87,166 @@ class SettingsPage {
             epgRefreshSelect.addEventListener('change', () => {
                 this.app.player.settings.epgRefreshInterval = epgRefreshSelect.value;
                 this.app.player.saveSettings();
-                // Server-side sync timer is restarted automatically via settings API
             });
         }
 
         // Update last refreshed display
         this.updateEpgLastRefreshed();
+    }
 
-        // Stream output format
-        const streamFormatSelect = document.getElementById('setting-stream-format');
-        if (streamFormatSelect && this.app.player?.settings) {
-            // Load saved value from player settings
-            streamFormatSelect.value = this.app.player.settings.streamFormat || 'm3u8';
+    initTranscodingSettings() {
+        // Encoder settings
+        const hwEncoderSelect = document.getElementById('setting-hw-encoder');
+        const maxResolutionSelect = document.getElementById('setting-max-resolution');
+        const qualitySelect = document.getElementById('setting-quality');
 
-            // Save on change
-            streamFormatSelect.addEventListener('change', () => {
-                this.app.player.settings.streamFormat = streamFormatSelect.value;
-                this.app.player.saveSettings();
-            });
+        // Stream processing (use -tc suffix IDs from Transcoding tab)
+        const forceProxyToggle = document.getElementById('setting-force-proxy-tc');
+        const autoTranscodeToggle = document.getElementById('setting-auto-transcode-tc');
+        const forceTranscodeToggle = document.getElementById('setting-force-transcode-tc');
+        const forceRemuxToggle = document.getElementById('setting-force-remux-tc');
+        const streamFormatSelect = document.getElementById('setting-stream-format-tc');
+
+        // User-Agent (Transcoding tab versions)
+        const userAgentSelect = document.getElementById('setting-user-agent-tc');
+        const userAgentCustomInput = document.getElementById('setting-user-agent-custom-tc');
+        const customUaContainer = document.getElementById('custom-user-agent-container-tc');
+
+        // Load current settings
+        if (this.app.player?.settings) {
+            const s = this.app.player.settings;
+
+            if (hwEncoderSelect) hwEncoderSelect.value = s.hwEncoder || 'auto';
+            if (maxResolutionSelect) maxResolutionSelect.value = s.maxResolution || '1080p';
+            if (qualitySelect) qualitySelect.value = s.quality || 'medium';
+            if (forceProxyToggle) forceProxyToggle.checked = s.forceProxy === true;
+            if (autoTranscodeToggle) autoTranscodeToggle.checked = s.autoTranscode !== false;
+            if (forceTranscodeToggle) forceTranscodeToggle.checked = s.forceTranscode === true;
+            if (forceRemuxToggle) forceRemuxToggle.checked = s.forceRemux || false;
+            if (streamFormatSelect) streamFormatSelect.value = s.streamFormat || 'm3u8';
+            if (userAgentSelect) userAgentSelect.value = s.userAgentPreset || 'chrome';
+            if (userAgentCustomInput) userAgentCustomInput.value = s.userAgentCustom || '';
+            if (customUaContainer) {
+                customUaContainer.style.display = userAgentSelect?.value === 'custom' ? 'flex' : 'none';
+            }
         }
 
-        // User-Agent preset
-        const userAgentSelect = document.getElementById('setting-user-agent');
-        const userAgentCustomInput = document.getElementById('setting-user-agent-custom');
-        const customUaContainer = document.getElementById('custom-user-agent-container');
+        // Event listeners for encoder settings
+        hwEncoderSelect?.addEventListener('change', () => {
+            this.app.player.settings.hwEncoder = hwEncoderSelect.value;
+            this.app.player.saveSettings();
+        });
 
-        if (userAgentSelect && this.app.player?.settings) {
-            // Load saved values
-            userAgentSelect.value = this.app.player.settings.userAgentPreset || 'chrome';
-            if (userAgentCustomInput) {
-                userAgentCustomInput.value = this.app.player.settings.userAgentCustom || '';
+        maxResolutionSelect?.addEventListener('change', () => {
+            this.app.player.settings.maxResolution = maxResolutionSelect.value;
+            this.app.player.saveSettings();
+        });
+
+        qualitySelect?.addEventListener('change', () => {
+            this.app.player.settings.quality = qualitySelect.value;
+            this.app.player.saveSettings();
+        });
+
+        // Stream processing toggles
+        forceProxyToggle?.addEventListener('change', () => {
+            this.app.player.settings.forceProxy = forceProxyToggle.checked;
+            this.app.player.saveSettings();
+        });
+
+        autoTranscodeToggle?.addEventListener('change', () => {
+            this.app.player.settings.autoTranscode = autoTranscodeToggle.checked;
+            this.app.player.saveSettings();
+        });
+
+        forceTranscodeToggle?.addEventListener('change', () => {
+            this.app.player.settings.forceTranscode = forceTranscodeToggle.checked;
+            this.app.player.saveSettings();
+        });
+
+        forceRemuxToggle?.addEventListener('change', () => {
+            this.app.player.settings.forceRemux = forceRemuxToggle.checked;
+            this.app.player.saveSettings();
+        });
+
+        streamFormatSelect?.addEventListener('change', () => {
+            this.app.player.settings.streamFormat = streamFormatSelect.value;
+            this.app.player.saveSettings();
+        });
+
+        // User-Agent handlers
+        const toggleCustomInput = () => {
+            if (customUaContainer) {
+                customUaContainer.style.display = userAgentSelect?.value === 'custom' ? 'flex' : 'none';
+            }
+        };
+
+        userAgentSelect?.addEventListener('change', () => {
+            this.app.player.settings.userAgentPreset = userAgentSelect.value;
+            this.app.player.saveSettings();
+            toggleCustomInput();
+        });
+
+        userAgentCustomInput?.addEventListener('change', () => {
+            this.app.player.settings.userAgentCustom = userAgentCustomInput.value;
+            this.app.player.saveSettings();
+        });
+    }
+
+    /**
+     * Load and display hardware info in Transcoding tab
+     */
+    async loadHardwareInfo() {
+        const container = document.getElementById('hw-info-container');
+        if (!container) return;
+
+        try {
+            const response = await fetch('/api/settings/hw-info');
+            if (!response.ok) throw new Error('Failed to fetch hardware info');
+            const hwInfo = await response.json();
+
+            const detected = [];
+
+            // Only show detected hardware
+            if (hwInfo.nvidia?.available) {
+                detected.push(`<div class="hw-info-item hw-available">
+                    <span class="hw-badge">✓ NVIDIA</span>
+                    <span class="hw-name">${hwInfo.nvidia.name}</span>
+                </div>`);
             }
 
-            // Show/hide custom input
-            const toggleCustomInput = () => {
-                if (customUaContainer) {
-                    customUaContainer.style.display = userAgentSelect.value === 'custom' ? 'flex' : 'none';
-                }
-            };
-            toggleCustomInput();
+            if (hwInfo.amf?.available) {
+                detected.push(`<div class="hw-info-item hw-available">
+                    <span class="hw-badge">✓ AMD</span>
+                    <span class="hw-name">${hwInfo.amf.name || 'Available'}</span>
+                </div>`);
+            }
 
-            // Save on change
-            userAgentSelect.addEventListener('change', () => {
-                this.app.player.settings.userAgentPreset = userAgentSelect.value;
-                this.app.player.saveSettings();
-                toggleCustomInput();
-            });
+            if (hwInfo.qsv?.available) {
+                detected.push(`<div class="hw-info-item hw-available">
+                    <span class="hw-badge">✓ Intel QSV</span>
+                    <span class="hw-name">Available</span>
+                </div>`);
+            }
 
-            userAgentCustomInput?.addEventListener('change', () => {
-                this.app.player.settings.userAgentCustom = userAgentCustomInput.value;
-                this.app.player.saveSettings();
-            });
+            if (hwInfo.vaapi?.available) {
+                detected.push(`<div class="hw-info-item hw-available">
+                    <span class="hw-badge">✓ VAAPI</span>
+                    <span class="hw-name">${hwInfo.vaapi.device || 'Available'}</span>
+                </div>`);
+            }
+
+            let html;
+            if (detected.length > 0) {
+                html = `<div class="hw-info-grid">${detected.join('')}</div>`;
+                html += `<p class="hint" style="margin-top: var(--space-sm);">Recommended encoder: <strong>${hwInfo.recommended}</strong></p>`;
+            } else {
+                html = `<p class="hint">No GPU acceleration detected. Using software encoding.</p>`;
+            }
+
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Error loading hardware info:', err);
+            container.innerHTML = '<p class="hint error">Failed to load hardware info</p>';
         }
     }
 
@@ -285,6 +355,11 @@ class SettingsPage {
         // Load users when switching to users tab
         if (tabName === 'users') {
             this.loadUsers();
+        }
+
+        // Load hardware info when switching to transcode tab
+        if (tabName === 'transcode') {
+            this.loadHardwareInfo();
         }
     }
 

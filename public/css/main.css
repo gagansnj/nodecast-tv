@@ -4026,3 +4026,50 @@ kbd {
   height: 18px;
   flex-shrink: 0;
 }
+
+/* Hardware Info Grid (Transcoding Tab) */
+.hw-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-sm);
+}
+
+.hw-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.hw-info-item.hw-available {
+  border-color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.hw-info-item.hw-unavailable {
+  opacity: 0.6;
+}
+
+.hw-badge {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.hw-info-item.hw-available .hw-badge {
+  color: var(--color-success);
+}
+
+.hw-info-item.hw-unavailable .hw-badge {
+  color: var(--color-text-muted);
+}
+
+.hw-name {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
