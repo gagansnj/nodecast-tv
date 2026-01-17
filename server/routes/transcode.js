@@ -1,10 +1,150 @@
 const express = require('express');
 const router = express.Router();
 const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs').promises;
 const db = require('../db');
+const transcodeSession = require('../services/transcodeSession');
 
 /**
- * Transcode stream
+ * Transcode Routes
+ * 
+ * Direct streaming (backward compatible):
+ *   GET /api/transcode?url=...
+ * 
+ * HLS session-based (new, supports seeking):
+ *   POST /api/transcode/session        - Create new session
+ *   GET  /api/transcode/:id/stream.m3u8 - Get HLS playlist
+ *   GET  /api/transcode/:id/:segment.ts - Get segment file
+ *   DELETE /api/transcode/:id          - Stop and cleanup session
+ *   GET /api/transcode/sessions        - List all sessions (debug)
+ */
+
+// Start session cleanup interval
+transcodeSession.startCleanupInterval();
+
+/**
+ * Create a new transcode session
+ * POST /api/transcode/session
+ * Body: { url: string, seekOffset?: number }
+ */
+router.post('/session', async (req, res) => {
+    const { url, seekOffset } = req.body;
+
+    if (!url) {
+        return res.status(400).json({ error: 'URL is required' });
+    }
+
+    const ffmpegPath = req.app.locals.ffmpegPath || 'ffmpeg';
+    const settings = await db.settings.get();
+    const userAgent = db.getUserAgent(settings);
+
+    try {
+        const session = await transcodeSession.createSession(url, {
+            ffmpegPath,
+            userAgent,
+            seekOffset: seekOffset || 0,
+            hwEncoder: settings.hwEncoder || 'software',
+            maxResolution: settings.maxResolution || '1080p',
+            quality: settings.quality || 'medium'
+        });
+
+        await session.start();
+
+        // Wait for playlist to be ready (first segments generated)
+        const ready = await session.waitForPlaylist(15000);
+
+        if (!ready) {
+            await transcodeSession.removeSession(session.id);
+            return res.status(500).json({ error: 'Transcoding failed to start', reason: 'Playlist not generated in time' });
+        }
+
+        res.json({
+            sessionId: session.id,
+            playlistUrl: `/api/transcode/${session.id}/stream.m3u8`,
+            status: session.status
+        });
+
+    } catch (err) {
+        console.error('[Transcode] Session creation failed:', err);
+        res.status(500).json({ error: 'Failed to create session', details: err.message });
+    }
+});
+
+/**
+ * Get HLS playlist for a session
+ * GET /api/transcode/:sessionId/stream.m3u8
+ */
+router.get('/:sessionId/stream.m3u8', async (req, res) => {
+    const { sessionId } = req.params;
+    const session = transcodeSession.getSession(sessionId);
+
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const playlist = await session.getPlaylist();
+    if (!playlist) {
+        return res.status(404).json({ error: 'Playlist not ready' });
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(playlist);
+});
+
+/**
+ * Get a segment file for a session
+ * GET /api/transcode/:sessionId/:segment.ts
+ */
+router.get('/:sessionId/:segment', async (req, res) => {
+    const { sessionId, segment } = req.params;
+
+    // Only handle .ts files
+    if (!segment.endsWith('.ts')) {
+        return res.status(404).json({ error: 'Invalid segment' });
+    }
+
+    const session = transcodeSession.getSession(sessionId);
+    if (!session) {
+        return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const segmentPath = await session.getSegment(segment);
+    if (!segmentPath) {
+        return res.status(404).json({ error: 'Segment not found' });
+    }
+
+    res.setHeader('Content-Type', 'video/MP2T');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache forever (immutable)
+    res.sendFile(segmentPath);
+});
+
+/**
+ * Stop and cleanup a session
+ * DELETE /api/transcode/:sessionId
+ */
+router.delete('/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+
+    try {
+        await transcodeSession.removeSession(sessionId);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove session', details: err.message });
+    }
+});
+
+/**
+ * List all active sessions (for debugging)
+ * GET /api/transcode/sessions
+ */
+router.get('/sessions', (req, res) => {
+    res.json(transcodeSession.getAllSessions());
+});
+
+/**
+ * Direct transcode stream (backward compatible, no seeking)
  * GET /api/transcode?url=...
  * 
  * Transcodes audio to AAC for browser compatibility while passing video through.
@@ -121,3 +261,4 @@ router.get('/', async (req, res) => {
 });
 
 module.exports = router;
+
