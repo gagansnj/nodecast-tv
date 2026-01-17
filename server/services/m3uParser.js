@@ -271,5 +271,46 @@ async function* fetchAndParseStreaming(url, batchSize = 500) {
     yield* parseStreaming(stream, batchSize);
 }
 
-module.exports = { parse, parseExtinf, fetchAndParse, parseStreaming, fetchAndParseStreaming };
+/**
+ * Fast count of entries in an M3U playlist (for size estimation)
+ * Streams the file and counts #EXTINF lines without full parsing
+ * @param {string} url - URL of the M3U playlist
+ * @returns {Promise<number>} Number of entries
+ */
+async function countEntries(url) {
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch playlist: ${response.status}`);
+    }
+
+    let stream;
+    if (response.body && typeof response.body.pipe === 'function') {
+        stream = response.body;
+    } else if (response.body) {
+        stream = Readable.fromWeb(response.body);
+    } else {
+        return 0;
+    }
+
+    return new Promise((resolve, reject) => {
+        let count = 0;
+        const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+
+        rl.on('line', (line) => {
+            if (line.startsWith('#EXTINF:')) {
+                count++;
+            }
+        });
+
+        rl.on('close', () => resolve(count));
+        rl.on('error', reject);
+    });
+}
+
+module.exports = { parse, parseExtinf, fetchAndParse, parseStreaming, fetchAndParseStreaming, countEntries };
 

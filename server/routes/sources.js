@@ -4,6 +4,7 @@ const { sources } = require('../db');
 const { getDb } = require('../db/sqlite');
 const xtreamApi = require('../services/xtreamApi');
 const syncService = require('../services/syncService');
+const m3uParser = require('../services/m3uParser');
 
 // Get all sources
 router.get('/', async (req, res) => {
@@ -201,6 +202,66 @@ router.post('/:id/test', async (req, res) => {
     } catch (err) {
         console.error('Error testing source:', err);
         res.json({ success: false, error: err.message });
+    }
+});
+
+// Estimate M3U playlist size (for large playlist warning)
+const M3U_LARGE_THRESHOLD = 50000;
+
+// Estimate by URL (for new sources before creation)
+router.post('/estimate', async (req, res) => {
+    try {
+        const { url, type } = req.body;
+
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+
+        // Only M3U sources need estimation
+        if (type !== 'm3u') {
+            return res.json({ count: 0, needsWarning: false, threshold: M3U_LARGE_THRESHOLD });
+        }
+
+        console.log(`[Sources] Estimating M3U size for URL...`);
+        const count = await m3uParser.countEntries(url);
+        console.log(`[Sources] M3U estimate: ${count} entries`);
+
+        res.json({
+            count,
+            needsWarning: count > M3U_LARGE_THRESHOLD,
+            threshold: M3U_LARGE_THRESHOLD
+        });
+    } catch (err) {
+        console.error('Error estimating M3U size:', err);
+        res.status(500).json({ error: 'Failed to estimate playlist size', message: err.message });
+    }
+});
+
+// Estimate by source ID (for existing sources)
+router.get('/:id/estimate', async (req, res) => {
+    try {
+        const source = await sources.getById(req.params.id);
+        if (!source) {
+            return res.status(404).json({ error: 'Source not found' });
+        }
+
+        // Only M3U sources need estimation
+        if (source.type !== 'm3u') {
+            return res.json({ count: 0, needsWarning: false, threshold: M3U_LARGE_THRESHOLD });
+        }
+
+        console.log(`[Sources] Estimating M3U size for ${source.name}...`);
+        const count = await m3uParser.countEntries(source.url);
+        console.log(`[Sources] M3U estimate: ${count} entries`);
+
+        res.json({
+            count,
+            needsWarning: count > M3U_LARGE_THRESHOLD,
+            threshold: M3U_LARGE_THRESHOLD
+        });
+    } catch (err) {
+        console.error('Error estimating M3U size:', err);
+        res.status(500).json({ error: 'Failed to estimate playlist size', message: err.message });
     }
 });
 

@@ -34,6 +34,61 @@ class SourceManager {
     }
 
     /**
+     * Show a styled warning modal with Cancel/Proceed buttons
+     * @param {Object} options - { title, message, details, proceedText, cancelText }
+     * @returns {Promise<boolean>} - Resolves true if user clicks Proceed, false if Cancel
+     */
+    showWarningModal({ title, message, details = '', proceedText = 'Proceed', cancelText = 'Cancel' }) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalFooter = document.getElementById('modal-footer');
+
+            modalTitle.textContent = title;
+
+            modalBody.innerHTML = `
+                <div class="warning-modal-content">
+                    <div class="warning-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 48px; height: 48px; color: var(--color-warning, #f59e0b);">
+                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        </svg>
+                    </div>
+                    <p class="warning-message" style="font-size: 1rem; margin: var(--space-md) 0; color: var(--color-text-primary);">${message}</p>
+                    ${details ? `<p class="warning-details" style="font-size: 0.875rem; color: var(--color-text-muted); background: var(--color-bg-tertiary); padding: var(--space-md); border-radius: var(--radius-md); text-align: left;">${details}</p>` : ''}
+                </div>
+            `;
+
+            modalFooter.innerHTML = `
+                <button class="btn btn-secondary" id="warning-cancel">${cancelText}</button>
+                <button class="btn btn-primary" id="warning-proceed" style="background: var(--color-warning, #f59e0b); border-color: var(--color-warning, #f59e0b);">${proceedText}</button>
+            `;
+
+            modal.classList.add('active');
+
+            const cleanup = () => {
+                modal.classList.remove('active');
+                modal.querySelector('.modal-close').onclick = null;
+            };
+
+            document.getElementById('warning-cancel').onclick = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            document.getElementById('warning-proceed').onclick = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            modal.querySelector('.modal-close').onclick = () => {
+                cleanup();
+                resolve(false);
+            };
+        });
+    }
+
+    /**
      * Poll sync status from the backend
      */
     pollSyncStatus() {
@@ -218,6 +273,28 @@ class SourceManager {
         }
 
         try {
+            // Check M3U size before creating (large playlist warning)
+            if (type === 'm3u') {
+                try {
+                    const estimate = await API.sources.estimateByUrl(url, type);
+                    if (estimate.needsWarning) {
+                        const proceed = await this.showWarningModal({
+                            title: '⚠️ Large Playlist Warning',
+                            message: `This playlist contains <strong>${estimate.count.toLocaleString()}</strong> channels.`,
+                            details: `Syncing may take several minutes and app performance may be impacted with large playlists.<br><br>Consider using a filtered M3U from your provider to include only channels you actually watch.`,
+                            proceedText: 'Proceed Anyway',
+                            cancelText: 'Cancel'
+                        });
+                        if (!proceed) {
+                            return; // Don't create the source
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[SourceManager] Could not estimate M3U size:', err.message);
+                    // Continue with creation anyway
+                }
+            }
+
             await API.sources.create({ type, name, url, username, password });
             document.getElementById('modal').classList.remove('active');
             await this.loadSources();
@@ -318,6 +395,34 @@ class SourceManager {
                 btn.disabled = true;
                 const icon = btn.querySelector('.icon');
                 if (icon) icon.classList.add('spin');
+            }
+
+            // Check M3U size before syncing (large playlist warning)
+            if (type === 'm3u') {
+                try {
+                    const estimate = await API.sources.estimate(id);
+                    if (estimate.needsWarning) {
+                        const proceed = await this.showWarningModal({
+                            title: '⚠️ Large Playlist Warning',
+                            message: `This playlist contains <strong>${estimate.count.toLocaleString()}</strong> channels.`,
+                            details: `Syncing may take several minutes and app performance may be impacted with large playlists.<br><br>Consider using a filtered M3U from your provider to include only channels you actually watch.`,
+                            proceedText: 'Proceed Anyway',
+                            cancelText: 'Cancel'
+                        });
+                        if (!proceed) {
+                            // Reset button state
+                            if (btn) {
+                                btn.disabled = false;
+                                const icon = btn.querySelector('.icon');
+                                if (icon) icon.classList.remove('spin');
+                            }
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[SourceManager] Could not estimate M3U size:', err.message);
+                    // Continue with sync anyway
+                }
             }
 
             // 1. Trigger Backend Sync
