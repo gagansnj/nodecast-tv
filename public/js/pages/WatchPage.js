@@ -330,7 +330,12 @@ class WatchPage {
                     const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : 'Transcoding (Video)';
 
                     this.updateTranscodeStatus('transcoding', statusText);
-                    const playlistUrl = await this.startTranscodeSession(url, { videoMode, videoCodec: info.video });
+                    const playlistUrl = await this.startTranscodeSession(url, {
+                        videoMode,
+                        videoCodec: info.video,
+                        audioCodec: info.audio,
+                        audioChannels: info.audioChannels
+                    });
                     this.playHls(playlistUrl);
                     this.setVolumeFromStorage();
                     return;

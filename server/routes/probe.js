@@ -128,6 +128,7 @@ function analyzeProbeResult(probeResult, url) {
     return {
         video: videoCodec,
         audio: audioCodec,
+        audioChannels: audioStream?.channels || 0, // For Smart Audio Copy
         container: container,
         compatible: compatible,
         needsRemux: needsRemux,

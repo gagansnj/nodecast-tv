@@ -149,6 +149,16 @@ class SettingsPage {
             this.app.player.saveSettings();
         });
 
+        // Audio Mix Preset
+        const audioMixSelect = document.getElementById('setting-audio-mix');
+        if (audioMixSelect) {
+            audioMixSelect.value = this.app.player?.settings?.audioMixPreset || 'auto';
+            audioMixSelect.addEventListener('change', () => {
+                this.app.player.settings.audioMixPreset = audioMixSelect.value;
+                this.app.player.saveSettings();
+            });
+        }
+
         // Stream processing toggles
         forceProxyToggle?.addEventListener('change', () => {
             this.app.player.settings.forceProxy = forceProxyToggle.checked;

@@ -806,7 +806,12 @@ class VideoPlayer {
                         const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : 'Transcoding (Video)';
 
                         this.updateTranscodeStatus('transcoding', statusText);
-                        const playlistUrl = await this.startTranscodeSession(streamUrl, { videoMode, videoCodec: info.video });
+                        const playlistUrl = await this.startTranscodeSession(streamUrl, {
+                            videoMode,
+                            videoCodec: info.video,
+                            audioCodec: info.audio,
+                            audioChannels: info.audioChannels
+                        });
                         this.currentUrl = playlistUrl; // Update currentUrl for HLS reload
 
                         this.playHls(playlistUrl);

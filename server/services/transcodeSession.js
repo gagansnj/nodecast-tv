@@ -222,15 +222,43 @@ class TranscodeSession extends EventEmitter {
             this.addVideoEncoderArgs(args, encoder);
         }
 
-        // Audio: Transcode to AAC
-        args.push(
-            '-c:a', 'aac',
-            '-ar', '48000',
-            '-b:a', '192k',
-            // Smart Stereo Downmix (ITU-R BS.775 Standard + LFE):
-            // Balanced mix: FL/FR=100%, FC=70% (Unity), Surrounds=70%, LFE=50%
-            '-af', 'pan=stereo|FL=FL+0.707*FC+0.707*BL+0.5*LFE|FR=FR+0.707*FC+0.707*BR+0.5*LFE,aresample=async=1'
-        );
+        // Audio: Apply mix preset
+        const audioCodec = this.options.audioCodec?.toLowerCase() || 'unknown';
+        const audioChannels = this.options.audioChannels || 0;
+        const audioMixPreset = this.options.audioMixPreset || 'auto';
+        const isStereoAac = audioCodec.includes('aac') && audioChannels === 2;
+
+        // Define pan filter presets for 5.1 -> Stereo downmix
+        const AUDIO_MIX_FILTERS = {
+            // ITU-R BS.775 Standard: Mathematically balanced, transparent
+            itu: 'pan=stereo|FL=FL+0.707*FC+0.707*BL+0.5*LFE|FR=FR+0.707*FC+0.707*BR+0.5*LFE',
+            // Night Mode: Heavy dialogue boost, reduced bass/surrounds for quiet viewing
+            night: 'pan=stereo|FL=0.5*FL+1.2*FC+0.3*BL+0.1*LFE|FR=0.5*FR+1.2*FC+0.3*BR+0.1*LFE',
+            // Cinematic: Wide soundstage, immersive (original "dialogue boost" mix)
+            cinematic: 'pan=stereo|FL=FC+0.80*FL+0.60*BL+0.5*LFE|FR=FC+0.80*FR+0.60*BR+0.5*LFE'
+        };
+
+        if (audioMixPreset === 'passthrough') {
+            // Passthrough: Always copy audio, no processing
+            console.log(`[TranscodeSession ${this.id}] Audio: Passthrough (copy)`);
+            args.push('-c:a', 'copy');
+        } else if (audioMixPreset === 'auto' && isStereoAac) {
+            // Auto + Stereo AAC source: Smart copy
+            console.log(`[TranscodeSession ${this.id}] Audio: Auto (Smart Copy) - Source is Stereo AAC`);
+            args.push('-c:a', 'copy');
+        } else {
+            // Transcode to AAC with selected mix preset (default to ITU for 'auto')
+            const mixPreset = (audioMixPreset === 'auto') ? 'itu' : audioMixPreset;
+            const panFilter = AUDIO_MIX_FILTERS[mixPreset] || AUDIO_MIX_FILTERS.itu;
+
+            console.log(`[TranscodeSession ${this.id}] Audio: ${mixPreset.toUpperCase()} mix (${audioCodec} ${audioChannels}ch -> Stereo AAC)`);
+            args.push(
+                '-c:a', 'aac',
+                '-ar', '48000',
+                '-b:a', '192k',
+                '-af', `${panFilter},aresample=async=1`
+            );
+        }
 
         // HLS output options
         args.push(
