@@ -140,6 +140,8 @@ nodecast-tv is optimized for **HLS (HTTP Live Streaming)**.
 -   **⚠️ High Latency/P2P**: For sources like Acestream, prefer HLS output (`.m3u8`) over raw TS streams to avoid timeouts during buffering.
 -   **❌ RTMP/RTSP**: Not supported natively by browsers.
 
+
+
 ## Streaming Settings
 
 All streaming settings are found in **Settings → Player → Streaming**.
@@ -216,6 +218,16 @@ location / {
 
 If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfin**, or **xTeVe** to manage your streams, you may need to adjust nodecast-tv settings for optimal playback. These tools typically use passthrough mode, which preserves original codecs (like HEVC/Dolby) that most browsers cannot decode natively, and may also trigger CORS restrictions.
 
+**Output Format Compatibility:**
+
+| Middleware Output | Works? | Notes |
+|-------------------|--------|-------|
+| **HLS (`.m3u8`)** | ✅ Yes | Best option. NodeCast plays HLS natively. |
+| **Raw TS (`.ts`)** | ⚠️ Maybe | Enable **"Force Remux"**. May fail if middleware proxies the stream. |
+| **Proxied TS** | ❌ No | If middleware proxies/rewrites the stream, NodeCast's FFmpeg can't read it. Use HLS output instead. |
+
+> **Why Proxied TS Fails:** When middleware is set to "Proxy" mode, it wraps the stream in its own layer. NodeCast's Remux/FFmpeg can't parse this format (error: `Invalid data found when processing input`). Configure your middleware to output **HLS (m3u8)** instead.
+
 **Recommended Settings in nodecast-tv:**
 
 | Setting | Location | When to Enable |
@@ -223,6 +235,7 @@ If you're using IPTV middleware like **m3u-editor**, **dispatcharr**, **Threadfi
 | **Force Backend Proxy** | Settings → Player → Streaming | Always recommended when using middleware |
 | **Force Remux** | Settings → Player → Streaming | For raw `.ts` streams (lightweight, no re-encoding) |
 | **Force Audio Transcode** | Settings → Player → Streaming | If you have no audio (Dolby/AC3/EAC3 streams) |
+
 
 ---
 
