@@ -227,8 +227,9 @@ class TranscodeSession extends EventEmitter {
             '-c:a', 'aac',
             '-ar', '48000',
             '-b:a', '192k',
-            // Smart Stereo Downmix (NetV Style): Boosts dialogue (FC) and preserves LFE
-            '-af', 'pan=stereo|FL=FC+0.30*FL+0.30*BL|FR=FC+0.30*FR+0.30*BR,aresample=async=1'
+            // Smart Stereo Downmix (ITU-R BS.775 Standard + LFE):
+            // Balanced mix: FL/FR=100%, FC=70% (Unity), Surrounds=70%, LFE=50%
+            '-af', 'pan=stereo|FL=FL+0.707*FC+0.707*BL+0.5*LFE|FR=FR+0.707*FC+0.707*BR+0.5*LFE,aresample=async=1'
         );
 
         // HLS output options
