@@ -442,6 +442,13 @@ h4 {
   pointer-events: auto;
 }
 
+/* Hide expand button on mobile - mobile uses the floating toggle instead */
+@media (max-width: 768px) {
+  .sidebar-expand-btn {
+    display: none !important;
+  }
+}
+
 /* Smooth transitions */
 .channel-sidebar {
   transition: width 0.2s ease, min-width 0.2s ease;
