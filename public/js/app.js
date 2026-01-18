@@ -16,6 +16,7 @@ class App {
 
         // Initialize page controllers
         this.pages.home = new HomePage(this);
+        this.pages.live = new LivePage(this);
         this.pages.guide = new GuidePage(this);
         this.pages.movies = new MoviesPage(this);
         this.pages.series = new SeriesPage(this);

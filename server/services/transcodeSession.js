@@ -196,18 +196,15 @@ class TranscodeSession extends EventEmitter {
             '-err_detect', 'ignore_err',
             '-reconnect', '1',
             '-reconnect_streamed', '1',
-            '-reconnect_delay_max', '3',
-            '-seekable', '0',
-            // Critical for syncing copied video with transcoded audio if source has non-zero start time
-            '-copyts'
+            '-reconnect_delay_max', '3'
         );
 
-        // Add seek offset if specified
+        args.push('-i', this.url);
+
+        // Add seek offset if specified (as output option to avoid Range requests)
         if (this.options.seekOffset > 0) {
             args.push('-ss', String(this.options.seekOffset));
         }
-
-        args.push('-i', this.url);
 
         // Map streams
         args.push('-map', '0:v:0');

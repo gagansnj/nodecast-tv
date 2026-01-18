@@ -99,6 +99,7 @@ app.use('/api/remux', require('./routes/remux'));
 app.use('/api/probe', require('./routes/probe'));
 app.use('/api/subtitle', require('./routes/subtitle'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/history', require('./routes/history'));
 
 // Version endpoint
 app.get('/api/version', (req, res) => {

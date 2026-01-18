@@ -28,11 +28,11 @@ const BROWSER_AUDIO_CODECS = ['aac', 'mp3', 'opus', 'vorbis'];
 /**
  * Probe stream with ffprobe
  */
-function probeStream(url, ffprobePath, timeout = 15000) {
+function probeStream(url, ffprobePath, userAgent = null, timeout = 15000) {
     return new Promise((resolve, reject) => {
         const args = [
             '-v', 'error',
-            '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            '-user_agent', userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
             '-print_format', 'json',
             '-show_streams',
             '-show_format',
@@ -138,12 +138,13 @@ function analyzeProbeResult(probeResult, url) {
 }
 
 router.get('/', async (req, res) => {
-    const { url } = req.query;
+    const { url, ua } = req.query;
     if (!url) {
         return res.status(400).json({ error: 'URL parameter is required' });
     }
 
     const ffprobePath = req.app.locals.ffprobePath;
+    const cacheKey = `${url}${ua ? `|${ua}` : ''}`;
 
     if (!ffprobePath) {
         // No ffprobe available - assume needs transcoding to be safe
@@ -159,20 +160,20 @@ router.get('/', async (req, res) => {
     }
 
     // Check cache
-    const cached = probeCache.get(url);
+    const cached = probeCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
         console.log(`[Probe] Cache hit for: ${url.substring(0, 50)}...`);
         return res.json(cached.result);
     }
 
-    console.log(`[Probe] Probing: ${url.substring(0, 80)}...`);
+    console.log(`[Probe] Probing: ${url.substring(0, 80)}... ${ua ? `(UA: ${ua})` : ''}`);
 
     try {
-        const probeResult = await probeStream(url, ffprobePath);
+        const probeResult = await probeStream(url, ffprobePath, ua);
         const analysis = analyzeProbeResult(probeResult, url);
 
         // Cache result
-        probeCache.set(url, { result: analysis, timestamp: Date.now() });
+        probeCache.set(cacheKey, { result: analysis, timestamp: Date.now() });
 
         console.log(`[Probe] Result: video=${analysis.video}, audio=${analysis.audio}, ` +
             `container=${analysis.container}, compatible=${analysis.compatible}, ` +

@@ -82,6 +82,9 @@ class WatchPage {
         this.nextEpisodeCountdown = 10;
         this.nextEpisodeInterval = null;
 
+        // Watch history
+        this.historyInterval = null;
+
         this.init();
     }
 
@@ -198,6 +201,8 @@ class WatchPage {
         this.seriesInfo = content.seriesInfo || null;
         this.currentSeason = content.currentSeason || null;
         this.currentEpisode = content.currentEpisode || null;
+        this.resumeTime = content.resumeTime || 0;
+        this.containerExtension = content.containerExtension || 'mp4';
         this.returnPage = content.type === 'movie' ? 'movies' : 'series';
 
         // Stop any Live TV playback before starting movie/series
@@ -240,6 +245,9 @@ class WatchPage {
         await this.checkFavorite();
         // Show overlay initially
         this.showOverlay();
+
+        // Start watch history tracking
+        this.startHistoryTracking();
     }
 
     /**
@@ -273,7 +281,11 @@ class WatchPage {
             const res = await fetch('/api/transcode/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, ...options })
+                body: JSON.stringify({
+                    url,
+                    seekOffset: this.resumeTime, // Pass resume point to backend
+                    ...options
+                })
             });
             if (!res.ok) throw new Error('Failed to start session');
             const session = await res.json();
@@ -346,7 +358,8 @@ class WatchPage {
         if (settings.autoTranscode) {
             console.log('[WatchPage] Auto Transcode enabled. Probing stream...');
             try {
-                const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
+                const ua = settings.userAgentPreset === 'custom' ? settings.userAgentCustom : settings.userAgentPreset;
+                const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(url)}&ua=${encodeURIComponent(ua || '')}`);
                 const info = await probeRes.json();
                 console.log(`[WatchPage] Probe result: video=${info.video}, audio=${info.audio}, compatible=${info.compatible}`);
 
@@ -360,6 +373,7 @@ class WatchPage {
                     this.updateTranscodeStatus('transcoding', statusText);
                     const playlistUrl = await this.startTranscodeSession(url, {
                         videoMode,
+                        seekOffset: this.resumeTime, // Ensure seekOffset is passed
                         videoCodec: info.video,
                         audioCodec: info.audio,
                         audioChannels: info.audioChannels
@@ -392,7 +406,10 @@ class WatchPage {
         if (settings.forceVideoTranscode) {
             console.log('[WatchPage] Force Video Transcode enabled. Starting session (encode)...');
             this.updateTranscodeStatus('transcoding', 'Transcoding (Video)');
-            const playlistUrl = await this.startTranscodeSession(url, { videoMode: 'encode' });
+            const playlistUrl = await this.startTranscodeSession(url, {
+                videoMode: 'encode',
+                seekOffset: this.resumeTime
+            });
             this.playHls(playlistUrl);
             this.setVolumeFromStorage();
             return;
@@ -405,12 +422,17 @@ class WatchPage {
             // Probe to get video codec for HEVC tag handling
             let videoCodec = 'unknown';
             try {
-                const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(url)}`);
+                const ua = settings.userAgentPreset === 'custom' ? settings.userAgentCustom : settings.userAgentPreset;
+                const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(url)}&ua=${encodeURIComponent(ua || '')}`);
                 const info = await probeRes.json();
                 videoCodec = info.video;
             } catch (e) { console.warn('Probe failed for force audio, assuming h264'); }
 
-            const playlistUrl = await this.startTranscodeSession(url, { videoMode: 'copy', videoCodec });
+            const playlistUrl = await this.startTranscodeSession(url, {
+                videoMode: 'copy',
+                videoCodec,
+                seekOffset: this.resumeTime
+            });
             this.playHls(playlistUrl);
             this.setVolumeFromStorage();
             return;
@@ -509,6 +531,10 @@ class WatchPage {
     }
 
     stop() {
+        // Stop history tracking and save final progress
+        this.stopHistoryTracking();
+        this.saveProgress();
+
         // Cleanup transcode session if exists
         this.stopTranscodeSession();
         this.updateTranscodeStatus('hidden');
@@ -631,6 +657,17 @@ class WatchPage {
 
     onMetadataLoaded() {
         // Duration is unreliable for transcoded streams, so we don't display it
+
+        // Handle resumption
+        if (this.resumeTime > 0 && this.video) {
+            const duration = this.video.duration;
+            // Only resume if not near the end (95%)
+            if (!duration || this.resumeTime < duration * 0.95) {
+                console.log(`[WatchPage] Resuming at ${this.resumeTime}s`);
+                this.video.currentTime = this.resumeTime;
+            }
+            this.resumeTime = 0; // Reset after use
+        }
     }
 
     onPlay() {
@@ -1190,6 +1227,50 @@ class WatchPage {
         // Called when page becomes hidden
         // Don't stop playback here - allow background playback
         this.cancelNextEpisode();
+    }
+    // ============================================================
+    // Watch History Tracking
+    // ============================================================
+
+    startHistoryTracking() {
+        this.stopHistoryTracking(); // Clear existing if any
+        this.historyInterval = setInterval(() => this.saveProgress(), 10000); // 10s
+    }
+
+    stopHistoryTracking() {
+        if (this.historyInterval) {
+            clearInterval(this.historyInterval);
+            this.historyInterval = null;
+        }
+    }
+
+    async saveProgress() {
+        if (!this.content || !this.video || this.video.paused) return;
+
+        const progress = Math.floor(this.video.currentTime);
+        const duration = Math.floor(this.video.duration);
+
+        if (isNaN(progress) || isNaN(duration) || duration <= 0) return;
+
+        try {
+            const data = {
+                title: this.content.title || 'Unknown Title',
+                subtitle: this.content.subtitle || (this.content.type === 'movie' ? 'Movie' : 'Series'),
+                poster: this.content.poster,
+                sourceId: this.content.sourceId,
+                containerExtension: this.containerExtension
+            };
+
+            await window.API.request('POST', '/history', {
+                id: this.content.id,
+                type: this.content.type === 'movie' ? 'movie' : 'episode',
+                progress,
+                duration,
+                data
+            });
+        } catch (err) {
+            console.warn('[History] Failed to save progress:', err);
+        }
     }
 }
 

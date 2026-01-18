@@ -47,6 +47,13 @@
         <a href="#" class="nav-link active" data-page="home">
           <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
               class="icon">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+            </svg></span>
+          <span>Home</span>
+        </a>
+        <a href="#" class="nav-link" data-page="live">
+          <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+              class="icon">
               <path
                 d="M21 6h-7.59l3.29-3.29L16 2l-4 4-4-4-.71.71L10.59 6H3a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8a2 2 0 0 0-2-2zm0 14H3V8h18v12zM9 10v8l7-4z" />
             </svg></span>
@@ -88,8 +95,14 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Home Page -->
+      <!-- Home (Dashboard) Page -->
       <div id="page-home" class="page active">
+        <!-- Content will be rendered by HomePage.js -->
+        <div class="loading-state">Loading Dashboard...</div>
+      </div>
+
+      <!-- Live TV Page (formerly Home) -->
+      <div id="page-live" class="page">
         <div class="home-layout">
           <!-- Channel Toggle Button (Mobile) -->
           <button class="channel-toggle-btn" id="channel-toggle-btn">
@@ -1041,7 +1054,8 @@
   <script src="/js/components/ChannelList.js?v=3"></script>
   <script src="/js/components/SourceManager.js?v=2"></script>
   <script src="/js/components/EpgGuide.js?v=2"></script>
-  <script src="/js/pages/Home.js?v=3"></script>
+  <script src="/js/pages/HomePage.js?v=2"></script>
+  <script src="/js/pages/LivePage.js?v=2"></script>
   <script src="/js/pages/Guide.js?v=2"></script>
   <script src="/js/pages/MoviesPage.js?v=4"></script>
   <script src="/js/pages/SeriesPage.js?v=1"></script>
