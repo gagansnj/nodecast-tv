@@ -55,13 +55,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
 COPY --from=ffmpeg /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 
-# Also try to copy from standard location if above fails
-COPY --from=ffmpeg /usr/bin/ffmpeg /usr/local/bin/ffmpeg 2>/dev/null || true
-COPY --from=ffmpeg /usr/bin/ffprobe /usr/local/bin/ffprobe 2>/dev/null || true
-
-# Verify FFmpeg works and show capabilities
-RUN ffmpeg -version || echo "FFmpeg copy failed, checking alternate location..." && \
-    ls -la /usr/local/bin/ff* || true
+# Verify FFmpeg works and show hardware encoders
+RUN ffmpeg -version && ffmpeg -encoders 2>/dev/null | grep -E "vaapi|nvenc|qsv" || echo "Note: HW encoders depend on runtime GPU access"
 
 WORKDIR /app
 
