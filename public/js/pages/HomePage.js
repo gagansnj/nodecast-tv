@@ -31,6 +31,15 @@ class HomePage {
 
         pageHome.innerHTML = `
             <div class="dashboard-content" id="home-content">
+                <section class="dashboard-section" id="favorite-channels-section">
+                    <div class="section-header">
+                        <h2>Favorite Channels</h2>
+                    </div>
+                    <div class="horizontal-scroll channel-tiles" id="favorite-channels-list">
+                        <div class="loading-state">Loading favorites...</div>
+                    </div>
+                </section>
+
                 <section class="dashboard-section" id="continue-watching-section">
                     <div class="section-header">
                         <h2>Continue Watching</h2>
@@ -67,6 +76,9 @@ class HomePage {
         this.isLoading = true;
 
         try {
+            // 0. Load Favorite Channels (first section)
+            await this.renderFavoriteChannels();
+
             // 1. Load Watch History
             const history = await window.API.request('GET', '/history?limit=12');
             if (history && Array.isArray(history)) {
@@ -82,6 +94,103 @@ class HomePage {
         } finally {
             this.isLoading = false;
         }
+    }
+
+    async renderFavoriteChannels() {
+        const list = document.getElementById('favorite-channels-list');
+        const section = document.getElementById('favorite-channels-section');
+        if (!list || !section) return;
+
+        try {
+            // Fetch favorite channels for current user
+            const favorites = await window.API.request('GET', '/favorites?itemType=channel');
+
+            if (!favorites || favorites.length === 0) {
+                list.innerHTML = '<div class="empty-state hint">Add channels to favorites from Live TV</div>';
+                return;
+            }
+
+            // Ensure channel list is loaded to resolve channel details
+            const channelList = this.app.channelList;
+            if (!channelList.channels || channelList.channels.length === 0) {
+                await channelList.loadSources();
+                await channelList.loadChannels();
+            }
+
+            // Match favorites to channel data
+            const channels = [];
+            for (const fav of favorites) {
+                // Find channel in loaded channel list
+                const channel = channelList.channels.find(ch =>
+                    String(ch.sourceId) === String(fav.source_id) &&
+                    (String(ch.id) === String(fav.item_id) || String(ch.streamId) === String(fav.item_id))
+                );
+                if (channel) {
+                    channels.push({ ...channel, favoriteId: fav.id });
+                }
+            }
+
+            if (channels.length === 0) {
+                list.innerHTML = '<div class="empty-state hint">Add channels to favorites from Live TV</div>';
+                return;
+            }
+
+            // Render channel tiles
+            list.innerHTML = channels.map(ch => this.createChannelTile(ch)).join('');
+
+            // Attach click handlers
+            list.querySelectorAll('.channel-tile').forEach(tile => {
+                tile.addEventListener('click', () => {
+                    const channelId = tile.dataset.channelId;
+                    const sourceId = tile.dataset.sourceId;
+                    this.playChannel(channelId, sourceId);
+                });
+            });
+
+        } catch (err) {
+            console.error('[Dashboard] Error loading favorite channels:', err);
+            list.innerHTML = '<div class="empty-state hint">Error loading favorites</div>';
+        }
+    }
+
+    createChannelTile(channel) {
+        const logo = channel.tvgLogo || '/img/placeholder.png';
+        const logoUrl = logo.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(logo)}` : logo;
+        const name = channel.name || 'Unknown';
+
+        return `
+            <div class="channel-tile" data-channel-id="${channel.id}" data-source-id="${channel.sourceId}">
+                <div class="tile-logo">
+                    <img src="${logoUrl}" alt="${name}" loading="lazy" onerror="this.src='/img/placeholder.png'">
+                </div>
+                <div class="tile-name" title="${name}">${name}</div>
+            </div>
+        `;
+    }
+
+    playChannel(channelId, sourceId) {
+        // Navigate to Live TV and select the channel
+        this.app.navigateTo('live');
+
+        // Small delay to ensure page is ready
+        setTimeout(() => {
+            const channelList = this.app.channelList;
+            if (channelList) {
+                // Find and select the channel
+                const channel = channelList.channels.find(ch =>
+                    String(ch.id) === String(channelId) && String(ch.sourceId) === String(sourceId)
+                );
+                if (channel) {
+                    channelList.selectChannel({
+                        channelId: channel.id,
+                        sourceId: channel.sourceId,
+                        sourceType: channel.sourceType,
+                        streamId: channel.streamId || '',
+                        url: channel.url || ''
+                    });
+                }
+            }
+        }, 100);
     }
 
     renderHistory(items) {
@@ -105,11 +214,12 @@ class HomePage {
                 const item = items.find(i => i.item_id === id);
                 if (item) {
                     const type = item.item_type || item.type;
-                    if (type === 'series' && !isResume) {
-                        this.navigateToSeries(item);
-                    } else {
-                        this.playItem(item, true); // true for resume
-                    }
+
+                    // IF it's a series, checking details is better than blind resume
+                    // BUT for "Continue Watching", we ideally want to resume
+
+                    // Prioritize playing directly for resume tiles
+                    this.playItem(item, true); // true for resume
                 }
             });
         });
@@ -245,9 +355,9 @@ class HomePage {
         try {
             const type = item.item_type || item.type;
             const streamType = type === 'movie' ? 'movie' : 'series';
-            const sourceId = item.source_id;
+            const sourceId = item.source_id || (item.data && item.data.sourceId);
             const streamId = item.item_id;
-            const container = item.container_extension || 'mp4';
+            const container = item.container_extension || (item.data && item.data.containerExtension) || 'mp4';
 
             const result = await window.API.request('GET', `/proxy/xtream/${sourceId}/stream/${streamId}/${streamType}?container=${container}`);
 
