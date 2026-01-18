@@ -1123,7 +1123,7 @@ class VideoPlayer {
      * Fetch EPG data for current channel
      */
     async fetchEpgData(channel) {
-        if (!channel || !channel.epg_id) {
+        if (!channel || (!channel.tvgId && !channel.epg_id)) {
             this.updateNowPlaying(channel, null);
             return;
         }
