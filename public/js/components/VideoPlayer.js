@@ -752,6 +752,9 @@ class VideoPlayer {
         this.currentChannel = channel;
 
         try {
+            // Stop any WatchPage playback (movies/series) before starting Live TV
+            window.app?.pages?.watch?.stop?.();
+
             // Stop current playback
             this.stop();
             this.updateTranscodeStatus('hidden');

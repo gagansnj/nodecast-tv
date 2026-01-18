@@ -200,6 +200,9 @@ class WatchPage {
         this.currentEpisode = content.currentEpisode || null;
         this.returnPage = content.type === 'movie' ? 'movies' : 'series';
 
+        // Stop any Live TV playback before starting movie/series
+        this.app?.player?.stop?.();
+
         // Reset state
         this.cancelNextEpisode();
 
