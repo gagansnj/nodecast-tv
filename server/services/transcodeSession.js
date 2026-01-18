@@ -415,10 +415,11 @@ class TranscodeSession extends EventEmitter {
         // Scale on VAAPI
         args.push('-vf', `scale_vaapi=w=-2:h=${height}`);
 
+        // VAAPI encoder with quality setting
+        // Note: -global_quality is the portable way to set quality for VAAPI
         args.push(
             '-c:v', 'h264_vaapi',
-            '-rc_mode', 'CQP',
-            '-qp', String(qp),
+            '-global_quality', String(qp),
             '-bf', '3'
         );
     }
