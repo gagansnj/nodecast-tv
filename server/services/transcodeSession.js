@@ -360,18 +360,25 @@ class TranscodeSession extends EventEmitter {
 
     /**
      * Get target height based on maxResolution or upscaleTarget setting
-     * @param {boolean} forUpscale - If true, returns upscale target instead of max resolution
+     * When upscaling is enabled, uses the upscaleTarget resolution.
+     * Otherwise, uses maxResolution to cap the output.
      */
-    getTargetHeight(forUpscale = false) {
+    getTargetHeight() {
         const resolutionMap = {
             '4k': 2160,
             '1080p': 1080,
             '720p': 720,
             '480p': 480
         };
-        if (forUpscale && this.options.upscaleEnabled) {
-            return resolutionMap[this.options.upscaleTarget] || 1080;
+
+        // When upscaling is enabled, use the upscale target resolution
+        if (this.options.upscaleEnabled) {
+            const target = resolutionMap[this.options.upscaleTarget] || 1080;
+            console.log(`[TranscodeSession ${this.id}] Upscale target height: ${target}p`);
+            return target;
         }
+
+        // Otherwise, use max resolution as the cap
         return resolutionMap[this.options.maxResolution] || 1080;
     }
 
