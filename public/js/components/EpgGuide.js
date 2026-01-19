@@ -429,17 +429,20 @@ class EpgGuide {
         // Calculate total height for virtual scrolling
         const totalHeight = this.filteredChannels.length * this.rowHeight;
 
-        // Build HTML structure with virtual scroll container
+        // Build HTML structure - header is INSIDE scroll container for natural sync
         this.container.innerHTML = `
       <div class="epg-container" style="position: relative;">
-        <div class="epg-time-header">
-          ${timeSlots.map(slot => `
-            <div class="epg-time-slot" style="width: ${30 * this.pixelsPerMinute}px;">
-              ${slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          `).join('')}
-        </div>
         <div class="epg-scroll-container" style="overflow: auto; max-height: calc(100vh - 200px);">
+          <div class="epg-time-header">
+            <div class="epg-header-corner"></div>
+            <div class="epg-time-slots">
+              ${timeSlots.map(slot => `
+                <div class="epg-time-slot" style="width: ${30 * this.pixelsPerMinute}px;">
+                  ${slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              `).join('')}
+            </div>
+          </div>
           <div class="epg-spacer" style="height: ${totalHeight}px; position: relative;">
             <div class="epg-channel-rows" style="position: absolute; top: 0; left: 0; right: 0;"></div>
           </div>
@@ -465,26 +468,36 @@ class EpgGuide {
             this.scrollContainer?.removeEventListener('scroll', this._hScrollHandler);
         }
 
-        // Get reference to time header for horizontal scroll sync
-        this.timeHeader = this.container.querySelector('.epg-time-header');
+        // Get reference to time slots container for horizontal scroll sync
+        this.timeSlotsContainer = this.container.querySelector('.epg-time-slots');
 
         // Set up scroll handler for virtual scrolling (debounced for performance)
         this._scrollHandler = this.debounce(() => this.updateVisibleRows(), 16); // ~60fps
         this.scrollContainer.addEventListener('scroll', this._scrollHandler);
 
-        // Set up horizontal scroll sync (instant, not debounced)
-        this._hScrollHandler = () => {
-            if (this.timeHeader && this.scrollContainer) {
-                this.timeHeader.style.transform = `translateX(-${this.scrollContainer.scrollLeft}px)`;
-            }
-        };
-        this.scrollContainer.addEventListener('scroll', this._hScrollHandler);
+        // No need for horizontal scroll sync anymore - header is inside scroll container
 
         // Initial render of visible rows
         this.updateVisibleRows();
 
+        // Sync header corner width with actual sidebar width (handles CSS overrides)
+        this.syncHeaderCornerWidth();
+
         // Add now indicator
         this.updateNowIndicator();
+    }
+
+    /**
+     * Sync header corner width with actual sidebar width
+     * This handles cases where CSS variables are overridden on mobile
+     */
+    syncHeaderCornerWidth() {
+        const sidebar = this.container.querySelector('.epg-channel-info');
+        const headerCorner = this.container.querySelector('.epg-header-corner');
+        if (sidebar && headerCorner) {
+            const actualWidth = sidebar.offsetWidth;
+            headerCorner.style.width = `${actualWidth}px`;
+        }
     }
 
     /**

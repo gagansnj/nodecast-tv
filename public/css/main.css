@@ -989,10 +989,22 @@ video::cue {
 
 .epg-time-header {
   display: flex;
+  position: sticky;
   top: 0;
   background: var(--color-bg-secondary);
   z-index: 10;
-  margin-left: var(--epg-sidebar-width);
+}
+
+.epg-header-corner {
+  width: var(--epg-sidebar-width);
+  flex-shrink: 0;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border);
+}
+
+.epg-time-slots {
+  display: flex;
+  flex: 1;
 }
 
 .epg-time-slot {
@@ -2043,14 +2055,6 @@ kbd {
 
   .epg-channel-info {
     width: var(--epg-sidebar-width);
-  }
-
-  .epg-time-header {
-    margin-left: var(--epg-sidebar-width);
-  }
-
-  .epg-time-slot {
-    min-width: 160px;
   }
 
   /* Movies & Series */
