@@ -980,7 +980,8 @@ video::cue {
 
 .epg-grid {
   height: calc(100vh - var(--navbar-height) - 60px);
-  overflow: auto;
+  overflow: hidden;
+  overflow-y: auto;
   padding: var(--space-md);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -1887,6 +1888,7 @@ kbd {
     --sidebar-width: 320px;
     --space-lg: 16px;
     --space-xl: 24px;
+    --epg-sidebar-width: 180px;
   }
 
   /* Navigation - Hide text labels, show only icons */
@@ -1900,7 +1902,8 @@ kbd {
     gap: 0;
   }
 
-  .navbar-menu span:not(.nav-icon) {
+  /* Hide nav link text on mobile, but keep Now Playing visible */
+  .navbar-menu .nav-link span:not(.nav-icon) {
     display: none;
   }
 
@@ -2039,7 +2042,11 @@ kbd {
   }
 
   .epg-channel-info {
-    width: 180px;
+    width: var(--epg-sidebar-width);
+  }
+
+  .epg-time-header {
+    margin-left: var(--epg-sidebar-width);
   }
 
   .epg-time-slot {
@@ -4314,7 +4321,7 @@ kbd {
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  margin-right: 16px;
+  margin-right: var(--space-md);
   background: linear-gradient(135deg, var(--color-accent) 0%, #8b5cf6 100%);
   border-radius: var(--radius-full);
   color: white;
@@ -4360,13 +4367,16 @@ kbd {
   }
 }
 
-/* Mobile responsive */
+/* Mobile responsive - show in dropdown menu */
 @media (max-width: 768px) {
   .now-playing-indicator {
-    max-width: 140px;
-    padding: 5px 10px;
-    font-size: 12px;
-    margin-right: 8px;
+    width: calc(100% - 32px);
+    max-width: none;
+    margin: 0 16px var(--space-sm) 16px;
+    padding: 10px 16px;
+    font-size: 13px;
+    border-radius: var(--radius-md);
+    justify-content: center;
   }
 }
 
@@ -4406,7 +4416,63 @@ kbd {
   color: var(--color-text-bright);
 }
 
+/* Scroll Wrapper with Navigation Arrows */
+.scroll-wrapper {
+  position: relative;
+}
+
+.scroll-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(8px);
+}
+
+.scroll-arrow:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: var(--color-accent);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.scroll-arrow svg {
+  width: 24px;
+  height: 24px;
+}
+
+.scroll-arrow.scroll-left {
+  left: -8px;
+}
+
+.scroll-arrow.scroll-right {
+  right: -8px;
+}
+
+.scroll-arrow.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hide arrows on touch devices (they can swipe) */
+@media (hover: none) {
+  .scroll-arrow {
+    display: none;
+  }
+}
+
 .horizontal-scroll {
+
   display: flex;
   gap: 20px;
   overflow-x: auto;

@@ -298,9 +298,17 @@ router.get('/recent', async (req, res) => {
 
         const db = getDb();
         const recentItems = db.prepare(`
-            SELECT * FROM playlist_items 
-            WHERE type = ? AND is_hidden = 0
-            ORDER BY added_at DESC
+            SELECT * FROM playlist_items p
+            WHERE p.type = ? 
+              AND p.is_hidden = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM categories c 
+                  WHERE c.source_id = p.source_id 
+                    AND c.category_id = p.category_id 
+                    AND c.type = p.type 
+                    AND c.is_hidden = 1
+              )
+            ORDER BY p.added_at DESC
             LIMIT ?
         `).all(type, parseInt(limit));
 

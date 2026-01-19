@@ -439,7 +439,7 @@ class EpgGuide {
             </div>
           `).join('')}
         </div>
-        <div class="epg-scroll-container" style="overflow-y: auto; max-height: calc(100vh - 200px);">
+        <div class="epg-scroll-container" style="overflow: auto; max-height: calc(100vh - 200px);">
           <div class="epg-spacer" style="height: ${totalHeight}px; position: relative;">
             <div class="epg-channel-rows" style="position: absolute; top: 0; left: 0; right: 0;"></div>
           </div>
@@ -461,10 +461,24 @@ class EpgGuide {
         if (this._scrollHandler) {
             this.scrollContainer?.removeEventListener('scroll', this._scrollHandler);
         }
+        if (this._hScrollHandler) {
+            this.scrollContainer?.removeEventListener('scroll', this._hScrollHandler);
+        }
 
-        // Set up scroll handler for virtual scrolling
+        // Get reference to time header for horizontal scroll sync
+        this.timeHeader = this.container.querySelector('.epg-time-header');
+
+        // Set up scroll handler for virtual scrolling (debounced for performance)
         this._scrollHandler = this.debounce(() => this.updateVisibleRows(), 16); // ~60fps
         this.scrollContainer.addEventListener('scroll', this._scrollHandler);
+
+        // Set up horizontal scroll sync (instant, not debounced)
+        this._hScrollHandler = () => {
+            if (this.timeHeader && this.scrollContainer) {
+                this.timeHeader.style.transform = `translateX(-${this.scrollContainer.scrollLeft}px)`;
+            }
+        };
+        this.scrollContainer.addEventListener('scroll', this._hScrollHandler);
 
         // Initial render of visible rows
         this.updateVisibleRows();

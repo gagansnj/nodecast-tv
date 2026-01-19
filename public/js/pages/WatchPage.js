@@ -888,7 +888,14 @@ class WatchPage {
     renderDetails() {
         if (!this.content) return;
 
-        this.posterEl.src = this.content.poster || '/img/placeholder.png';
+        const isChannel = this.content.type === 'channel' || !this.content.type; // Default to channel if unknown
+        const fallback = isChannel ? '/img/placeholder.png' : '/img/poster-placeholder.jpg';
+
+        this.posterEl.onerror = () => {
+            this.posterEl.onerror = null;
+            this.posterEl.src = fallback;
+        };
+        this.posterEl.src = this.content.poster || fallback;
         this.posterEl.alt = this.content.title || '';
         this.contentTitleEl.textContent = this.content.title || '';
         this.yearEl.textContent = this.content.year || '';
@@ -984,7 +991,7 @@ class WatchPage {
             <div class="watch-recommended-card" data-id="${movie.stream_id}" data-source="${sourceId}">
                 <img src="${movie.stream_icon || movie.cover || '/img/placeholder.png'}" 
                      alt="${movie.name}" 
-                     onerror="this.src='/img/placeholder.png'" loading="lazy">
+                     onerror="this.onerror=null;this.src='/img/placeholder.png'" loading="lazy">
                 <p>${movie.name}</p>
             </div>
         `).join('');

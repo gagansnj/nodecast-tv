@@ -1251,6 +1251,9 @@ class VideoPlayer {
      * Stop playback
      */
     stop() {
+        // Stop any running transcode session first
+        this.stopTranscodeSession();
+
         if (this.hls) {
             this.hls.destroy();
             this.hls = null;
