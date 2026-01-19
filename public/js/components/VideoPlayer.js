@@ -522,6 +522,17 @@ class VideoPlayer {
         // Setup custom video controls
         this.initCustomControls();
 
+        // Detect video resolution when metadata loads (works for all streams)
+        this.video.addEventListener('loadedmetadata', () => {
+            if (this.video.videoHeight > 0) {
+                this.currentStreamInfo = {
+                    width: this.video.videoWidth,
+                    height: this.video.videoHeight
+                };
+                this.updateQualityBadge();
+            }
+        });
+
         // Initialize HLS.js if supported
         if (Hls.isSupported()) {
             this.hls = new Hls(this.getHlsConfig());
@@ -775,7 +786,11 @@ class VideoPlayer {
                 try {
                     const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(streamUrl)}`);
                     const info = await probeRes.json();
-                    console.log(`[Player] Probe result: video=${info.video}, audio=${info.audio}, compatible=${info.compatible}`);
+                    console.log(`[Player] Probe result: video=${info.video}, audio=${info.audio}, ${info.width}x${info.height}, compatible=${info.compatible}`);
+
+                    // Store probe result for quality badge display
+                    this.currentStreamInfo = info;
+                    this.updateQualityBadge();
 
                     // Handle subtitles from probe result
                     // Clear existing remote tracks (from previous streams)
@@ -1123,6 +1138,34 @@ class VideoPlayer {
     }
 
     /**
+     * Get quality label from video height
+     */
+    getQualityLabel(height) {
+        if (height >= 2160) return '4K';
+        if (height >= 1440) return '1440p';
+        if (height >= 1080) return '1080p';
+        if (height >= 720) return '720p';
+        if (height >= 480) return '480p';
+        if (height > 0) return `${height}p`;
+        return null;
+    }
+
+    /**
+     * Update quality badge display
+     */
+    updateQualityBadge() {
+        const badge = document.getElementById('player-quality-badge');
+        if (!badge) return;
+
+        if (this.currentStreamInfo?.height > 0) {
+            badge.textContent = this.getQualityLabel(this.currentStreamInfo.height);
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    /**
      * Fetch EPG data for current channel
      */
     async fetchEpgData(channel) {
@@ -1267,6 +1310,11 @@ class VideoPlayer {
         this.controlsOverlay?.classList.add('hidden'); // Hide controls
         this.loadingSpinner?.classList.remove('show');
         this.nowPlaying.classList.add('hidden');
+
+        // Hide quality badge
+        this.currentStreamInfo = null;
+        const badge = document.getElementById('player-quality-badge');
+        if (badge) badge.classList.add('hidden');
     }
 
     /**

@@ -61,6 +61,7 @@ class WatchPage {
 
         // Transcode Status
         this.transcodeStatusEx = document.getElementById('watch-transcode-status');
+        this.qualityBadgeEl = document.getElementById('watch-quality-badge');
 
         // State
         this.hls = null;
@@ -331,6 +332,33 @@ class WatchPage {
         this.transcodeStatusEx.classList.remove('hidden');
     }
 
+    /**
+     * Get quality label from video height
+     */
+    getQualityLabel(height) {
+        if (height >= 2160) return '4K';
+        if (height >= 1440) return '1440p';
+        if (height >= 1080) return '1080p';
+        if (height >= 720) return '720p';
+        if (height >= 480) return '480p';
+        if (height > 0) return `${height}p`;
+        return null;
+    }
+
+    /**
+     * Update quality badge display
+     */
+    updateQualityBadge() {
+        if (!this.qualityBadgeEl) return;
+
+        if (this.currentStreamInfo?.height > 0) {
+            this.qualityBadgeEl.textContent = this.getQualityLabel(this.currentStreamInfo.height);
+            this.qualityBadgeEl.classList.remove('hidden');
+        } else {
+            this.qualityBadgeEl.classList.add('hidden');
+        }
+    }
+
     async loadVideo(url) {
         // Store the URL for copy functionality
         this.currentUrl = url;
@@ -361,7 +389,11 @@ class WatchPage {
                 const ua = settings.userAgentPreset === 'custom' ? settings.userAgentCustom : settings.userAgentPreset;
                 const probeRes = await fetch(`/api/probe?url=${encodeURIComponent(url)}&ua=${encodeURIComponent(ua || '')}`);
                 const info = await probeRes.json();
-                console.log(`[WatchPage] Probe result: video=${info.video}, audio=${info.audio}, compatible=${info.compatible}`);
+                console.log(`[WatchPage] Probe result: video=${info.video}, audio=${info.audio}, ${info.width}x${info.height}, compatible=${info.compatible}`);
+
+                // Store early probe info for quality display
+                this.currentStreamInfo = info;
+                this.updateQualityBadge();
 
                 if (info.needsTranscode) {
                     console.log('[WatchPage] Auto: Using HLS transcode session (incompatible audio/video)');
@@ -539,6 +571,12 @@ class WatchPage {
         this.stopTranscodeSession();
         this.updateTranscodeStatus('hidden');
 
+        // Hide quality badge
+        this.currentStreamInfo = null;
+        if (this.qualityBadgeEl) {
+            this.qualityBadgeEl.classList.add('hidden');
+        }
+
         if (this.hls) {
             this.hls.destroy();
             this.hls = null;
@@ -656,7 +694,14 @@ class WatchPage {
     }
 
     onMetadataLoaded() {
-        // Duration is unreliable for transcoded streams, so we don't display it
+        // Detect resolution
+        if (this.video && this.video.videoHeight > 0) {
+            this.currentStreamInfo = {
+                width: this.video.videoWidth,
+                height: this.video.videoHeight
+            };
+            this.updateQualityBadge();
+        }
 
         // Handle resumption
         if (this.resumeTime > 0 && this.video) {

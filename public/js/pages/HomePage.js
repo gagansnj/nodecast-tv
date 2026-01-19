@@ -40,7 +40,10 @@ class HomePage {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                         </button>
                         <div class="horizontal-scroll channel-tiles" id="favorite-channels-list">
-                            <div class="loading-state">Loading favorites...</div>
+                            <div class="loading-state">
+                                <div class="loading"></div>
+                                <span>Loading favorites...</span>
+                            </div>
                         </div>
                         <button class="scroll-arrow scroll-right" aria-label="Scroll right">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
@@ -57,7 +60,10 @@ class HomePage {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                         </button>
                         <div class="horizontal-scroll" id="continue-watching-list">
-                            <div class="loading-state">Loading history...</div>
+                            <div class="loading-state">
+                                <div class="loading"></div>
+                                <span>Loading history...</span>
+                            </div>
                         </div>
                         <button class="scroll-arrow scroll-right" aria-label="Scroll right">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
@@ -74,7 +80,10 @@ class HomePage {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                         </button>
                         <div class="horizontal-scroll" id="recent-movies-list">
-                            <div class="empty-state">Coming soon</div>
+                            <div class="loading-state">
+                                <div class="loading"></div>
+                                <span>Loading recently added...</span>
+                            </div>
                         </div>
                         <button class="scroll-arrow scroll-right" aria-label="Scroll right">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
@@ -91,7 +100,10 @@ class HomePage {
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
                         </button>
                         <div class="horizontal-scroll" id="recent-series-list">
-                            <div class="empty-state">Coming soon</div>
+                            <div class="loading-state">
+                                <div class="loading"></div>
+                                <span>Loading recently added...</span>
+                            </div>
                         </div>
                         <button class="scroll-arrow scroll-right" aria-label="Scroll right">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
@@ -342,7 +354,7 @@ class HomePage {
         try {
             const movies = await window.API.request('GET', '/channels/recent?type=movie&limit=12');
             if (!movies || movies.length === 0) {
-                list.innerHTML = '<div class="no-data">No recent movies found</div>';
+                list.innerHTML = '<div class="empty-state hint">No recently added movies found</div>';
                 return;
             }
 
@@ -371,7 +383,7 @@ class HomePage {
         try {
             const series = await window.API.request('GET', '/channels/recent?type=series&limit=12');
             if (!series || series.length === 0) {
-                list.innerHTML = '<div class="no-data">No recent series found</div>';
+                list.innerHTML = '<div class="empty-state hint">No recently added series found</div>';
                 return;
             }
 
