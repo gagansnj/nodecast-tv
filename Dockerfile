@@ -15,7 +15,8 @@ FROM node:20-bookworm-slim
 
 # Install FFmpeg, build dependencies, and hardware acceleration drivers
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
     # FFmpeg
     ffmpeg \
     # Build dependencies for better-sqlite3
