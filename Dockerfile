@@ -15,7 +15,7 @@ FROM node:20-bookworm-slim
 
 # Install FFmpeg, build dependencies, and hardware acceleration drivers
 ENV DEBIAN_FRONTEND=noninteractive
-RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+RUN sed -i 's/Components: main/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && apt-get install -y --no-install-recommends \
     # FFmpeg
     ffmpeg \
