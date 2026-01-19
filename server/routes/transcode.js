@@ -48,6 +48,10 @@ router.post('/session', async (req, res) => {
             maxResolution: settings.maxResolution || '1080p',
             quality: settings.quality || 'medium',
             audioMixPreset: settings.audioMixPreset || 'auto', // Audio downmix preset
+            // Upscaling options
+            upscaleEnabled: settings.upscaleEnabled || false,
+            upscaleMethod: settings.upscaleMethod || 'hardware',
+            upscaleTarget: settings.upscaleTarget || '1080p',
             videoMode: videoMode, // 'copy' or 'encode'
             videoCodec: videoCodec, // 'h264', 'hevc', etc.
             audioCodec: audioCodec, // 'aac', 'ac3', etc.

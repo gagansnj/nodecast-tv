@@ -163,6 +163,44 @@ class SettingsPage {
             });
         }
 
+        // Upscaling Settings
+        const upscaleEnabledToggle = document.getElementById('setting-upscale-enabled');
+        const upscaleMethodSelect = document.getElementById('setting-upscale-method');
+        const upscaleTargetSelect = document.getElementById('setting-upscale-target');
+        const upscaleMethodContainer = document.getElementById('upscale-method-container');
+        const upscaleTargetContainer = document.getElementById('upscale-target-container');
+
+        // Helper to toggle upscale options visibility
+        const toggleUpscaleOptions = (enabled) => {
+            if (upscaleMethodContainer) upscaleMethodContainer.style.display = enabled ? 'flex' : 'none';
+            if (upscaleTargetContainer) upscaleTargetContainer.style.display = enabled ? 'flex' : 'none';
+        };
+
+        // Load upscaling settings
+        if (upscaleEnabledToggle) {
+            upscaleEnabledToggle.checked = s.upscaleEnabled || false;
+            toggleUpscaleOptions(upscaleEnabledToggle.checked);
+        }
+        if (upscaleMethodSelect) upscaleMethodSelect.value = s.upscaleMethod || 'hardware';
+        if (upscaleTargetSelect) upscaleTargetSelect.value = s.upscaleTarget || '1080p';
+
+        // Upscaling event handlers
+        upscaleEnabledToggle?.addEventListener('change', () => {
+            this.app.player.settings.upscaleEnabled = upscaleEnabledToggle.checked;
+            this.app.player.saveSettings();
+            toggleUpscaleOptions(upscaleEnabledToggle.checked);
+        });
+
+        upscaleMethodSelect?.addEventListener('change', () => {
+            this.app.player.settings.upscaleMethod = upscaleMethodSelect.value;
+            this.app.player.saveSettings();
+        });
+
+        upscaleTargetSelect?.addEventListener('change', () => {
+            this.app.player.settings.upscaleTarget = upscaleTargetSelect.value;
+            this.app.player.saveSettings();
+        });
+
         // Stream processing toggles
         forceProxyToggle?.addEventListener('change', () => {
             this.app.player.settings.forceProxy = forceProxyToggle.checked;

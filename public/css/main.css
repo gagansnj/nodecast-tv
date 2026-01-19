@@ -4148,6 +4148,12 @@ kbd {
   /* Green for Direct */
 }
 
+.transcode-status.upscaling {
+  background: rgba(156, 39, 176, 0.8);
+  /* Purple for Upscaling */
+  box-shadow: 0 0 10px rgba(156, 39, 176, 0.4);
+}
+
 .transcode-status.hidden {
   opacity: 0;
   pointer-events: none;

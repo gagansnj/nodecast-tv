@@ -814,16 +814,17 @@ class VideoPlayer {
                         }
                     }
 
-                    if (info.needsTranscode) {
-                        // Incompatible audio (AC3/EAC3/DTS) - use transcode session
-                        console.log('[Player] Auto: Using HLS transcode session');
+                    if (info.needsTranscode || this.settings.upscaleEnabled) {
+                        // Incompatible audio (AC3/EAC3/DTS) or Upscaling enabled - use transcode session
+                        console.log(`[Player] Auto: Using HLS transcode session (${this.settings.upscaleEnabled ? 'Upscaling' : 'Incompatible audio/video'})`);
 
                         // Heuristic: If video is h264, it's likely compatible, so only copy video (audio transcode only)
-                        // If video is hevc/other, we need full transcode
-                        const videoMode = (info.video && info.video.includes('h264')) ? 'copy' : 'encode';
-                        const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : 'Transcoding (Video)';
+                        // BUT: If upscaling is enabled, we MUST encode.
+                        const videoMode = (info.video && info.video.includes('h264') && !this.settings.upscaleEnabled) ? 'copy' : 'encode';
+                        const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : (this.settings.upscaleEnabled ? 'Upscaling' : 'Transcoding (Video)');
+                        const statusMode = this.settings.upscaleEnabled ? 'upscaling' : 'transcoding';
 
-                        this.updateTranscodeStatus('transcoding', statusText);
+                        this.updateTranscodeStatus(statusMode, statusText);
                         const playlistUrl = await this.startTranscodeSession(streamUrl, {
                             videoMode,
                             videoCodec: info.video,
@@ -863,10 +864,12 @@ class VideoPlayer {
                 }
             }
 
-            // CHECK: Force Video Transcode (Full)
-            if (this.settings.forceVideoTranscode) {
-                console.log('[Player] Force Video Transcode enabled. Starting session (encode)...');
-                this.updateTranscodeStatus('transcoding', 'Transcoding (Video)');
+            // CHECK: Force Video Transcode (Full) or Upscaling
+            if (this.settings.forceVideoTranscode || this.settings.upscaleEnabled) {
+                const statusText = this.settings.upscaleEnabled ? 'Upscaling' : 'Transcoding (Video)';
+                const statusMode = this.settings.upscaleEnabled ? 'upscaling' : 'transcoding';
+                console.log(`[Player] ${statusText} enabled. Starting session (encode)...`);
+                this.updateTranscodeStatus(statusMode, statusText);
                 const playlistUrl = await this.startTranscodeSession(streamUrl, { videoMode: 'encode' });
                 this.currentUrl = playlistUrl;
 

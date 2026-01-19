@@ -395,14 +395,16 @@ class WatchPage {
                 this.currentStreamInfo = info;
                 this.updateQualityBadge();
 
-                if (info.needsTranscode) {
-                    console.log('[WatchPage] Auto: Using HLS transcode session (incompatible audio/video)');
+                if (info.needsTranscode || settings.upscaleEnabled) {
+                    console.log(`[WatchPage] Auto: Using HLS transcode session (${settings.upscaleEnabled ? 'Upscaling' : 'Incompatible audio/video'})`);
 
-                    // Heuristic: If video is h264/compat, copy video. Usage: Audio fix.
-                    const videoMode = (info.video && info.video.includes('h264')) ? 'copy' : 'encode';
-                    const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : 'Transcoding (Video)';
+                    // Heuristic: If video is h264/compat, copy video. Usage: Audio fix. 
+                    // BUT: If upscaling is enabled, we MUST encode.
+                    const videoMode = (info.video && info.video.includes('h264') && !settings.upscaleEnabled) ? 'copy' : 'encode';
+                    const statusText = videoMode === 'copy' ? 'Transcoding (Audio)' : (settings.upscaleEnabled ? 'Upscaling' : 'Transcoding (Video)');
+                    const statusMode = settings.upscaleEnabled ? 'upscaling' : 'transcoding';
 
-                    this.updateTranscodeStatus('transcoding', statusText);
+                    this.updateTranscodeStatus(statusMode, statusText);
                     const playlistUrl = await this.startTranscodeSession(url, {
                         videoMode,
                         seekOffset: this.resumeTime, // Ensure seekOffset is passed
@@ -434,10 +436,12 @@ class WatchPage {
             }
         }
 
-        // Priority 1: Force Video Transcode (Full)
-        if (settings.forceVideoTranscode) {
-            console.log('[WatchPage] Force Video Transcode enabled. Starting session (encode)...');
-            this.updateTranscodeStatus('transcoding', 'Transcoding (Video)');
+        // Priority 1: Force Video Transcode (Full) or Upscaling
+        if (settings.forceVideoTranscode || settings.upscaleEnabled) {
+            const statusText = settings.upscaleEnabled ? 'Upscaling' : 'Transcoding (Video)';
+            const statusMode = settings.upscaleEnabled ? 'upscaling' : 'transcoding';
+            console.log(`[WatchPage] ${statusText} enabled. Starting session (encode)...`);
+            this.updateTranscodeStatus(statusMode, statusText);
             const playlistUrl = await this.startTranscodeSession(url, {
                 videoMode: 'encode',
                 seekOffset: this.resumeTime

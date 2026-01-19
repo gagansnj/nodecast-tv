@@ -72,6 +72,10 @@ class TranscodeSession extends EventEmitter {
             hwEncoder: options.hwEncoder || 'software',
             maxResolution: options.maxResolution || '1080p',
             quality: options.quality || 'medium',
+            // Upscaling options
+            upscaleEnabled: options.upscaleEnabled || false,
+            upscaleMethod: options.upscaleMethod || 'hardware', // 'hardware' or 'software'
+            upscaleTarget: options.upscaleTarget || '1080p',
             ...options
         };
     }
@@ -355,7 +359,9 @@ class TranscodeSession extends EventEmitter {
     }
 
     /**
-     * Get target height based on maxResolution setting
+     * Get target height based on maxResolution or upscaleTarget setting
+     * When upscaling is enabled, uses the upscaleTarget resolution.
+     * Otherwise, uses maxResolution to cap the output.
      */
     getTargetHeight() {
         const resolutionMap = {
@@ -364,7 +370,53 @@ class TranscodeSession extends EventEmitter {
             '720p': 720,
             '480p': 480
         };
+
+        // When upscaling is enabled, use the upscale target resolution
+        if (this.options.upscaleEnabled) {
+            const target = resolutionMap[this.options.upscaleTarget] || 1080;
+            console.log(`[TranscodeSession ${this.id}] Upscale target height: ${target}p`);
+            return target;
+        }
+
+        // Otherwise, use max resolution as the cap
         return resolutionMap[this.options.maxResolution] || 1080;
+    }
+
+    /**
+     * Build scale filter string based on encoder and upscaling settings
+     * @param {string} encoder - The encoder being used
+     * @param {number} height - Target height
+     */
+    buildScaleFilter(encoder, height) {
+        const useUpscale = this.options.upscaleEnabled;
+        const upscaleMethod = this.options.upscaleMethod || 'hardware';
+
+        // Log upscaling status
+        if (useUpscale) {
+            console.log(`[TranscodeSession ${this.id}] Upscaling: ${upscaleMethod} method to ${height}p`);
+        }
+
+        // Hardware scaling filters (for both upscale and downscale)
+        if (upscaleMethod === 'hardware' || !useUpscale) {
+            switch (encoder) {
+                case 'nvenc':
+                    // NVIDIA CUDA scaling with Lanczos for upscaling
+                    return `scale_cuda=-2:${height}:interp_algo=lanczos`;
+                case 'vaapi':
+                    return `scale_vaapi=w=-2:h=${height}:format=nv12`;
+                case 'qsv':
+                    return `scale_qsv=w=-2:h=${height}`;
+                case 'amf':
+                    // AMF uses CPU decode, so use software scale
+                    return useUpscale ? `scale=-2:${height}:flags=lanczos` : `scale=-2:${height}`;
+                case 'software':
+                default:
+                    return useUpscale ? `scale=-2:${height}:flags=lanczos` : `scale=-2:${height}`;
+            }
+        }
+
+        // Software Lanczos scaling (high quality, slower)
+        return `scale=-2:${height}:flags=lanczos`;
     }
 
     /**
@@ -372,7 +424,7 @@ class TranscodeSession extends EventEmitter {
      */
     addNvencEncoderArgs(args, height, qp) {
         // Video filter for scaling on GPU
-        args.push('-vf', `scale_cuda=-2:${height}:interp_algo=lanczos`);
+        args.push('-vf', this.buildScaleFilter('nvenc', height));
 
         // NVENC encoder with quality settings
         // Using portable options that work across FFmpeg builds
@@ -381,7 +433,8 @@ class TranscodeSession extends EventEmitter {
             '-preset', 'p4',           // Balanced preset (p1=fastest, p7=best)
             '-rc', 'constqp',          // Constant QP mode
             '-qp', String(qp),
-            '-bf', '3'                 // B-frames for better compression
+            '-bf', '3',                // B-frames for better compression
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -390,7 +443,7 @@ class TranscodeSession extends EventEmitter {
      */
     addAmfEncoderArgs(args, height, qp) {
         // CPU decoding + software scale + AMF encode
-        args.push('-vf', `scale=-2:${height}`);
+        args.push('-vf', this.buildScaleFilter('amf', height));
 
         args.push(
             '-c:v', 'h264_amf',
@@ -398,7 +451,8 @@ class TranscodeSession extends EventEmitter {
             '-rc', 'cqp',              // Constant QP
             '-qp_i', String(qp),
             '-qp_p', String(qp + 2),
-            '-qp_b', String(qp + 4)
+            '-qp_b', String(qp + 4),
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -410,7 +464,7 @@ class TranscodeSession extends EventEmitter {
         // 1. scale_vaapi to resize on GPU
         // 2. Ensure output format is nv12 for maximum encoder compatibility
         // The format is handled automatically when using -hwaccel_output_format vaapi
-        args.push('-vf', `scale_vaapi=w=-2:h=${height}:format=nv12`);
+        args.push('-vf', this.buildScaleFilter('vaapi', height));
 
         // VAAPI encoder with quality setting
         // Note: -global_quality is the portable way to set quality for VAAPI
@@ -418,7 +472,8 @@ class TranscodeSession extends EventEmitter {
             '-c:v', 'h264_vaapi',
             '-profile:v', 'main',      // Use main profile for compatibility
             '-global_quality', String(qp),
-            '-bf', '3'
+            '-bf', '3',
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -427,14 +482,15 @@ class TranscodeSession extends EventEmitter {
      */
     addQsvEncoderArgs(args, height, qp) {
         // Scale on QSV
-        args.push('-vf', `scale_qsv=w=-2:h=${height}`);
+        args.push('-vf', this.buildScaleFilter('qsv', height));
 
         args.push(
             '-c:v', 'h264_qsv',
             '-preset', 'medium',
             '-global_quality', String(qp),
             '-look_ahead', '1',
-            '-look_ahead_depth', '40'
+            '-look_ahead_depth', '40',
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -442,8 +498,8 @@ class TranscodeSession extends EventEmitter {
      * Software encoder arguments (fallback)
      */
     addSoftwareEncoderArgs(args, height, crf) {
-        // Software scaling
-        args.push('-vf', `scale=-2:${height}`);
+        // Software scaling (use Lanczos for upscaling if enabled)
+        args.push('-vf', this.buildScaleFilter('software', height));
 
         args.push(
             '-c:v', 'libx264',
