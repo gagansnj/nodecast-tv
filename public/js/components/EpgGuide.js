@@ -920,8 +920,8 @@ class EpgGuide {
             );
             if (channel) {
                 await window.app.channelList.selectChannel({ channelId: channel.id });
-                // Switch to home page
-                document.querySelector('[data-page="home"]').click();
+                // Switch to live TV page
+                document.querySelector('[data-page="live"]').click();
             }
         }
     }

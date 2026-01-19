@@ -433,7 +433,8 @@ class TranscodeSession extends EventEmitter {
             '-preset', 'p4',           // Balanced preset (p1=fastest, p7=best)
             '-rc', 'constqp',          // Constant QP mode
             '-qp', String(qp),
-            '-bf', '3'                 // B-frames for better compression
+            '-bf', '3',                // B-frames for better compression
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -450,7 +451,8 @@ class TranscodeSession extends EventEmitter {
             '-rc', 'cqp',              // Constant QP
             '-qp_i', String(qp),
             '-qp_p', String(qp + 2),
-            '-qp_b', String(qp + 4)
+            '-qp_b', String(qp + 4),
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -470,7 +472,8 @@ class TranscodeSession extends EventEmitter {
             '-c:v', 'h264_vaapi',
             '-profile:v', 'main',      // Use main profile for compatibility
             '-global_quality', String(qp),
-            '-bf', '3'
+            '-bf', '3',
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
@@ -486,7 +489,8 @@ class TranscodeSession extends EventEmitter {
             '-preset', 'medium',
             '-global_quality', String(qp),
             '-look_ahead', '1',
-            '-look_ahead_depth', '40'
+            '-look_ahead_depth', '40',
+            '-pix_fmt', 'yuv420p'      // Force 8-bit output for compatibility
         );
     }
 
