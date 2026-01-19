@@ -79,7 +79,11 @@ function getDefaultSettings() {
     audioMixPreset: 'auto',       // auto | itu | night | cinematic | passthrough
     // Probe cache settings  
     probeCacheTTL: 300,           // 5 minutes for URL probe cache
-    seriesProbeCacheDays: 7       // 7 days for series episode probe cache
+    seriesProbeCacheDays: 7,       // 7 days for series episode probe cache
+    // Upscaling settings
+    upscaleEnabled: false,
+    upscaleMethod: 'hardware',    // hardware | software
+    upscaleTarget: '1080p'        // 1080p | 4k | 720p
   };
 }
 
