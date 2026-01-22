@@ -634,22 +634,40 @@ class WatchPage {
 
     toggleFullscreen() {
         const container = document.querySelector('.watch-video-section');
-        if (!document.fullscreenElement) {
-            container?.requestFullscreen?.() || container?.webkitRequestFullscreen?.();
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+        if (isFullscreen) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
         } else {
-            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+            if (container?.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container?.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (this.video?.webkitEnterFullscreen) {
+                // iOS Safari: use native video fullscreen
+                this.video.webkitEnterFullscreen();
+            }
         }
     }
 
     async togglePictureInPicture() {
         try {
+            // Standard PiP API (Chrome, Edge, Firefox)
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
             } else if (document.pictureInPictureEnabled && this.video.readyState >= 2) {
                 await this.video.requestPictureInPicture();
             }
+            // Safari fallback using webkitPresentationMode
+            else if (typeof this.video.webkitSetPresentationMode === 'function') {
+                const mode = this.video.webkitPresentationMode;
+                this.video.webkitSetPresentationMode(mode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+            }
         } catch (err) {
-            // Silently fail - Firefox users can use native PiP button
             if (err.name !== 'NotAllowedError') {
                 console.error('Picture-in-Picture error:', err);
             }

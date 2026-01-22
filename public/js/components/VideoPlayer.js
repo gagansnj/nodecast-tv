@@ -349,30 +349,47 @@ class VideoPlayer {
     }
 
     /**
-     * Toggle fullscreen mode
+     * Toggle fullscreen mode (cross-browser including Safari)
      */
     toggleFullscreen() {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+        if (isFullscreen) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
         } else {
-            this.container.requestFullscreen().catch(err => {
-                console.error('Fullscreen error:', err);
-            });
+            const element = this.container;
+            if (element.requestFullscreen) {
+                element.requestFullscreen().catch(err => console.error('Fullscreen error:', err));
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (this.video.webkitEnterFullscreen) {
+                // iOS Safari: use native video fullscreen
+                this.video.webkitEnterFullscreen();
+            }
         }
     }
 
     /**
-     * Toggle Picture-in-Picture mode
+     * Toggle Picture-in-Picture mode (cross-browser including Safari)
      */
     async togglePictureInPicture() {
         try {
+            // Standard PiP API (Chrome, Edge, Firefox)
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
             } else if (document.pictureInPictureEnabled && this.video.readyState >= 2) {
                 await this.video.requestPictureInPicture();
             }
+            // Safari fallback using webkitPresentationMode
+            else if (typeof this.video.webkitSetPresentationMode === 'function') {
+                const mode = this.video.webkitPresentationMode;
+                this.video.webkitSetPresentationMode(mode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+            }
         } catch (err) {
-            // Silently fail - Firefox users can use native PiP button
             if (err.name !== 'NotAllowedError') {
                 console.error('Picture-in-Picture error:', err);
             }
