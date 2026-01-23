@@ -122,6 +122,7 @@ function initSchema() {
         CREATE TABLE IF NOT EXISTS watch_history (
             id TEXT PRIMARY KEY, -- Composite key: user_id:item_id
             user_id INTEGER NOT NULL,
+            source_id INTEGER, -- Source ID for Xtream/M3U
             item_type TEXT NOT NULL, -- 'movie', 'episode'
             item_id TEXT NOT NULL, -- The original item ID (stream_id or composite)
             parent_id TEXT, -- For episodes (series ID)
@@ -133,6 +134,14 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_history_user_updated ON watch_history(user_id, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_history_user_item ON watch_history(user_id, item_id);
     `);
+
+    // Migration: Add source_id column if missing (for existing databases)
+    try {
+        db.exec(`ALTER TABLE watch_history ADD COLUMN source_id INTEGER`);
+        console.log('[SQLite] Added source_id column to watch_history');
+    } catch (e) {
+        // Column already exists, ignore
+    }
 
     console.log('[SQLite] Schema initialized');
 }

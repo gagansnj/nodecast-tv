@@ -1387,6 +1387,7 @@ class WatchPage {
             await window.API.request('POST', '/history', {
                 id: this.content.id,
                 type: this.content.type === 'movie' ? 'movie' : 'episode',
+                sourceId: this.content.sourceId, // Add sourceId at top level for resume
                 progress,
                 duration,
                 data

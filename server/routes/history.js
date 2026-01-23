@@ -43,7 +43,7 @@ router.post('/', (req, res) => {
     try {
         const db = getDb();
         const userId = req.user.id;
-        const { id, type, parentId, progress, duration, data } = req.body;
+        const { id, type, parentId, progress, duration, data, sourceId } = req.body;
 
         if (!id || !type) {
             return res.status(400).json({ error: 'Missing required fields (id, type)' });
@@ -53,9 +53,10 @@ router.post('/', (req, res) => {
         const timestamp = Date.now();
 
         const stmt = db.prepare(`
-            INSERT INTO watch_history (id, user_id, item_type, item_id, parent_id, progress, duration, updated_at, data)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO watch_history (id, user_id, source_id, item_type, item_id, parent_id, progress, duration, updated_at, data)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
+                source_id = excluded.source_id,
                 progress = excluded.progress,
                 duration = excluded.duration,
                 updated_at = excluded.updated_at,
@@ -65,6 +66,7 @@ router.post('/', (req, res) => {
         stmt.run(
             compositeId,
             userId,
+            sourceId || null,
             type,
             id.toString(),
             parentId ? parentId.toString() : null,
