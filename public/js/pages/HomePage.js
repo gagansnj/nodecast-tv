@@ -479,6 +479,25 @@ class HomePage {
                     containerExtension: container
                 };
 
+                // For episodes, try to restore series data for next episode functionality
+                if (type === 'episode' && item.data) {
+                    content.seriesId = item.data.seriesId || null;
+                    content.currentSeason = item.data.currentSeason || null;
+                    content.currentEpisode = item.data.currentEpisode || null;
+
+                    // Fetch seriesInfo if we have a seriesId
+                    if (content.seriesId && sourceId) {
+                        try {
+                            const seriesInfo = await window.API.request('GET', `/proxy/xtream/${sourceId}/series_info?series_id=${content.seriesId}`);
+                            if (seriesInfo) {
+                                content.seriesInfo = seriesInfo;
+                            }
+                        } catch (e) {
+                            console.warn('[Dashboard] Could not fetch seriesInfo for next episode:', e);
+                        }
+                    }
+                }
+
                 // Switch to watch page
                 this.app.navigateTo('watch');
 

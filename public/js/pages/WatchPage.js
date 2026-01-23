@@ -1381,13 +1381,17 @@ class WatchPage {
                 subtitle: this.content.subtitle || (this.content.type === 'movie' ? 'Movie' : 'Series'),
                 poster: this.content.poster,
                 sourceId: this.content.sourceId,
-                containerExtension: this.containerExtension
+                containerExtension: this.containerExtension,
+                // Series-specific fields for next episode functionality
+                seriesId: this.content.seriesId || null,
+                currentSeason: this.currentSeason || null,
+                currentEpisode: this.currentEpisode || null
             };
 
             await window.API.request('POST', '/history', {
                 id: this.content.id,
                 type: this.content.type === 'movie' ? 'movie' : 'episode',
-                sourceId: this.content.sourceId, // Add sourceId at top level for resume
+                sourceId: this.content.sourceId,
                 progress,
                 duration,
                 data
