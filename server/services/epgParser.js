@@ -266,11 +266,9 @@ async function* fetchAndParseStreaming(url, batchSize = 1000) {
  * @yields {{ channels: Array|null, programmes: Array, isLast: boolean }}
  */
 async function* parseStreaming(input, batchSize = 1000) {
-    let channels = [];
+    const channels = [];
     let programmeBatch = [];
     let channelsYielded = false;
-    const maxPenmdingBatches = 4;
-    let paused = false;
 
     // We need to convert SAX events to an async iterator
     // This requires collecting events and yielding when batch is full
@@ -281,7 +279,7 @@ async function* parseStreaming(input, batchSize = 1000) {
     let currentObject = null;
     let textBuffer = '';
     let resolveNext = null;
-    const pendingBatches = [];
+    let pendingBatch = null;
     let ended = false;
     let error = null;
 
@@ -347,27 +345,13 @@ async function* parseStreaming(input, batchSize = 1000) {
                         isLast: false
                     };
                     channelsYielded = true;
-
-                    // allow channels array to be GC'd after included in first batch
-                    try { if (channels && channels.length) channels = null; } catch (e) {}
-
                     programmeBatch = [];
 
                     if (resolveNext) {
                         resolveNext(batch);
                         resolveNext = null;
                     } else {
-                        pendingBatches.push(batch);
-
-                        // Apply backpressure when queue grows too large
-                        try {
-                            if (!paused && pendingBatches.length >= maxPenmdingBatches) {
-                                if (input && typeof input.pause === 'function') {
-                                    input.pause();
-                                    paused = true;
-                                }
-                            }
-                        } catch (e) {}
+                        pendingBatch = batch;
                     }
                 }
             }
@@ -414,7 +398,7 @@ async function* parseStreaming(input, batchSize = 1000) {
             resolveNext(batch);
             resolveNext = null;
         } else {
-            pendingBatches.push(batch);
+            pendingBatch = batch;
         }
     });
 
@@ -429,21 +413,10 @@ async function* parseStreaming(input, batchSize = 1000) {
     input.pipe(saxStream);
 
     // Yield batches as they become available
-    
-    while (!ended || pendingBatches.length > 0) {
-        if (pendingBatches.length > 0) {
-            const batch = pendingBatches.shift();
-
-            // If paused and queue drained below threshold, resume
-            try {
-                if (paused && pendingBatches.length < maxPenmdingBatches) {
-                    if (input && typeof input.resume === 'function') {
-                        input.resume();
-                        paused = false;
-                    }
-                }
-            } catch (e) {}
-
+    while (!ended || pendingBatch) {
+        if (pendingBatch) {
+            const batch = pendingBatch;
+            pendingBatch = null;
             yield batch;
             if (batch.isLast) break;
         } else if (!ended) {
@@ -472,3 +445,4 @@ module.exports = {
     getProgrammesForChannel,
     getCurrentAndUpcoming
 };
+
