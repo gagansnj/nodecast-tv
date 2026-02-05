@@ -1,10 +1,10 @@
-# 🔌 NodeCast TV Plugin System
+# nodecast-tv Plugin System
 
-This directory allows you to extend the functionality of **NodeCast TV** without modifying the core source code. The server automatically detects and loads any `.js` file placed in this folder at startup.
+This directory allows you to extend the functionality of **nodecast-tv** without modifying the core source code. The server automatically detects and loads any `.js` file placed in this folder at startup.
 
 ---
 
-## 🛠️ How It Works
+## How It Works
 
 The plugin loader in `server/index.js` scans this directory at startup and loads plugins in **alphabetical order** (sorted by filename). Each plugin file should export either:
 - A function (sync or async) that will be called during initialization
@@ -16,7 +16,7 @@ When the server starts, it calls your plugin's initialization code and passes:
 
 ---
 
-## 📝 Plugin Patterns
+## Plugin Patterns
 
 ### Pattern 1: Simple Function Export
 
@@ -91,7 +91,7 @@ module.exports = {
 
 ---
 
-## 🔒 Security & Permissions
+## Security & Permissions
 
 > [!WARNING]
 > Plugins run with **full Node.js permissions** and have access to the Express app and all services. Only install plugins from trusted sources.
@@ -104,7 +104,7 @@ module.exports = {
 
 ---
 
-## 📦 Available Services
+## Available Services
 
 The `services` object contains all modules from `server/services/`:
 
@@ -130,7 +130,7 @@ module.exports = async function(app, services) {
 
 ---
 
-## 🔄 Load Order
+## Load Order
 
 Plugins are loaded in **alphabetical order** by filename. If you need specific ordering:
 
@@ -143,7 +143,7 @@ plugins/
 
 ---
 
-## 🧪 Testing Your Plugin
+## Testing Your Plugin
 
 1. Place your `.js` file in `server/plugins/`
 2. Restart the NodeCast TV server
@@ -154,7 +154,7 @@ plugins/
 
 ---
 
-## 💡 Example Use Cases
+## Example Use Cases
 
 - **Custom scrapers** - Add support for new streaming sources
 - **Notification systems** - Send alerts when new content is available
