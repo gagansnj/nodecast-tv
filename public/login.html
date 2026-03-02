@@ -159,6 +159,30 @@
         .setup-message.show {
             display: block;
         }
+
+        .remember-me-row {
+            display: flex;
+            align-items: center;
+            margin: -4px 0 20px;
+        }
+
+        .remember-me-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember-me-label input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            accent-color: var(--color-accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 
@@ -191,6 +215,13 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autocomplete="current-password"
                         minlength="6" placeholder="Enter your password">
+                </div>
+
+                <div class="remember-me-row" id="remember-me-row">
+                    <label class="remember-me-label">
+                        <input type="checkbox" id="rememberMe" name="rememberMe">
+                        <span>Keep me logged in</span>
+                    </label>
                 </div>
 
                 <button type="submit" class="btn-login" id="submit-btn">Sign In</button>
@@ -256,9 +287,10 @@
                     document.getElementById('submit-btn').textContent = 'Create Account';
                     document.getElementById('setup-message').classList.add('show');
                     document.getElementById('password').placeholder = 'Minimum 6 characters';
-                    // Hide SSO in setup mode
+                    // Hide SSO and remember-me in setup mode
                     document.querySelector('.sso-divider').style.display = 'none';
                     document.getElementById('btn-sso-login').style.display = 'none';
+                    document.getElementById('remember-me-row').style.display = 'none';
                 }
             } catch (err) {
                 console.error('Error checking setup status:', err);
@@ -283,13 +315,14 @@
             submitBtn.textContent = 'Please wait...';
 
             try {
+                const rememberMe = document.getElementById('rememberMe').checked;
                 const endpoint = isSetupMode ? '/api/auth/setup' : '/api/auth/login';
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, rememberMe })
                 });
 
                 const data = await response.json();
@@ -298,8 +331,14 @@
                     throw new Error(data.error || 'Authentication failed');
                 }
 
-                // Store token
-                localStorage.setItem('authToken', data.token);
+                // Store token persistently or for this session only
+                if (rememberMe) {
+                    localStorage.setItem('authToken', data.token);
+                    sessionStorage.removeItem('authToken');
+                } else {
+                    sessionStorage.setItem('authToken', data.token);
+                    localStorage.removeItem('authToken');
+                }
 
                 // Redirect to main app (replace history to prevent back button issues)
                 window.location.replace('/');
