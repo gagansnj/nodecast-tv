@@ -94,10 +94,17 @@ const Auth = {
     /**
      * Login user
      */
-    async login(username, password) {
+    async login(username, password, rememberMe = false) {
         try {
-            const result = await API.auth.login(username, password);
-            API.setToken(result.token);
+            const result = await API.auth.login(username, password, rememberMe);
+            // Store token persistently (localStorage) or for session only (sessionStorage)
+            if (rememberMe) {
+                localStorage.setItem('authToken', result.token);
+                sessionStorage.removeItem('authToken');
+            } else {
+                sessionStorage.setItem('authToken', result.token);
+                localStorage.removeItem('authToken');
+            }
             this.currentUser = result.user;
             this.showApp();
             return true;
@@ -115,7 +122,9 @@ const Auth = {
         } catch (error) {
             console.error('Logout error:', error);
         } finally {
-            API.setToken(null);
+            // Clear token from both storages to ensure full logout
+            localStorage.removeItem('authToken');
+            sessionStorage.removeItem('authToken');
             this.currentUser = null;
             this.showLogin();
         }

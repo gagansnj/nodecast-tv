@@ -120,8 +120,9 @@ router.post('/login', (req, res, next) => {
             return res.status(401).json({ error: info?.message || 'Invalid credentials' });
         }
 
-        // Generate JWT token
-        const token = auth.generateToken(user);
+        // Generate JWT token — indefinite if rememberMe, default expiry otherwise
+        const rememberMe = req.body.rememberMe === true || req.body.rememberMe === 'true';
+        const token = auth.generateToken(user, rememberMe ? '100y' : undefined);
 
         res.json({
             token,
@@ -135,12 +136,10 @@ router.post('/login', (req, res, next) => {
 });
 
 /**
- * Logout (client-side handles token removal)
+ * Logout — clears server session and signals client to drop token
  * POST /api/auth/logout
  */
 router.post('/logout', (req, res) => {
-    // With JWT, logout is handled client-side by removing the token
-    // This endpoint exists for consistency and future server-side token blacklisting
     res.json({ success: true, message: 'Logged out successfully' });
 });
 
