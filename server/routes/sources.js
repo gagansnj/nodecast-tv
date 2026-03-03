@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Type, name, and URL are required' });
         }
 
-        if (!['xtream', 'm3u', 'epg'].includes(type)) {
+        if (!['xtream', 'stalker', 'm3u', 'epg'].includes(type)) {
             return res.status(400).json({ error: 'Invalid source type' });
         }
 
@@ -187,6 +187,9 @@ router.post('/:id/test', async (req, res) => {
 
         if (source.type === 'xtream') {
             const result = await xtreamApi.authenticate(source.url, source.username, source.password);
+            res.json({ success: true, data: result });
+        } else if (source.type === 'stalker') {
+            const result = await stalkerApi.authenticate(source.url, source.username);
             res.json({ success: true, data: result });
         } else if (source.type === 'm3u') {
             const response = await fetch(source.url);

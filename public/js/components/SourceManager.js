@@ -6,6 +6,7 @@
 class SourceManager {
     constructor() {
         this.xtreamList = document.getElementById('xtream-list');
+        this.stalkerList = document.getElementById('stalker-list');
         this.m3uList = document.getElementById('m3u-list');
         this.epgList = document.getElementById('epg-list');
 
@@ -23,6 +24,7 @@ class SourceManager {
     init() {
         // Add source buttons
         document.getElementById('add-xtream').addEventListener('click', () => this.showAddModal('xtream'));
+        document.getElementById('add-stalker').addEventListener('click', () => this.showAddModal('stalker'));
         document.getElementById('add-m3u').addEventListener('click', () => this.showAddModal('m3u'));
         document.getElementById('add-epg').addEventListener('click', () => this.showAddModal('epg'));
 
@@ -113,6 +115,7 @@ class SourceManager {
             const sources = await API.sources.getAll();
 
             this.renderSourceList(this.xtreamList, sources.filter(s => s.type === 'xtream'), 'xtream');
+            this.renderSourceList(this.stalkerList, sources.filter(s => s.type === 'stalker'), 'stalker');
             this.renderSourceList(this.m3uList, sources.filter(s => s.type === 'm3u'), 'm3u');
             this.renderSourceList(this.epgList, sources.filter(s => s.type === 'epg'), 'epg');
         } catch (err) {
@@ -129,7 +132,7 @@ class SourceManager {
             return;
         }
 
-        const icons = { xtream: Icons.live, m3u: Icons.guide, epg: Icons.series };
+        const icons = { xtream: Icons.live, stalker: Icons.live, m3u: Icons.guide, epg: Icons.series };
 
         container.innerHTML = sources.map(source => `
       <div class="source-item ${source.enabled ? '' : 'disabled'}" data-id="${source.id}">
@@ -171,7 +174,7 @@ class SourceManager {
         const body = document.getElementById('modal-body');
         const footer = document.getElementById('modal-footer');
 
-        const titles = { xtream: 'Add Xtream Connection', m3u: 'Add M3U Playlist', epg: 'Add EPG Source' };
+        const titles = { xtream: 'Add Xtream Connection', stalker: 'Add Stalker Portal', m3u: 'Add M3U Playlist', epg: 'Add EPG Source' };
         title.textContent = titles[type];
 
         body.innerHTML = this.getSourceForm(type);
@@ -232,26 +235,31 @@ class SourceManager {
 
         const urlField = `
       <div class="form-group">
-        <label for="source-url">${type === 'xtream' ? 'Server URL' : 'URL'}</label>
+        <label for="source-url">${type === 'xtream' || type === 'stalker' ? 'Server URL' : 'URL'}</label>
         <input type="text" id="source-url" class="form-input" 
-               placeholder="${type === 'xtream' ? 'http://server.com:port' : 'https://example.com/playlist.m3u'}" 
+               placeholder="${type === 'xtream' ? 'http://server.com:port' : type === 'stalker' ? 'http://portal.server.com' : 'https://example.com/playlist.m3u'}" 
                value="${source.url || ''}">
       </div>
     `;
 
-        if (type === 'xtream') {
-            return `
-        ${nameField}
-        ${urlField}
-        <div class="form-group">
-          <label for="source-username">Username</label>
-          <input type="text" id="source-username" class="form-input" value="${source.username || ''}">
-        </div>
+        if (type === 'xtream' || type === 'stalker') {
+            // for stalker we use username field to store MAC address
+            const usernameLabel = type === 'stalker' ? 'MAC Address' : 'Username';
+            const pwdField = type === 'xtream' ? `
         <div class="form-group">
           <label for="source-password">Password</label>
           <input type="password" id="source-password" class="form-input" 
                  value="${source.password && !source.password.includes('•') ? source.password : ''}">
+        </div>` : '';
+
+            return `
+        ${nameField}
+        ${urlField}
+        <div class="form-group">
+          <label for="source-username">${usernameLabel}</label>
+          <input type="text" id="source-username" class="form-input" value="${source.username || ''}">
         </div>
+        ${pwdField}
       `;
         }
 
@@ -325,9 +333,9 @@ class SourceManager {
 
         try {
             const data = { name, url };
-            if (type === 'xtream') {
+            if (type === 'xtream' || type === 'stalker') {
                 data.username = username;
-                if (password) data.password = password;
+                if (type === 'xtream' && password) data.password = password;
             }
 
             await API.sources.update(id, data);
@@ -463,12 +471,12 @@ class SourceManager {
                     await window.app.epgGuide.loadEpg(true);
                 }
                 alert('EPG data synced & refreshed!');
-            } else if (type === 'xtream') {
-                // Re-fetch xtream data by reloading channels
+            } else if (type === 'xtream' || type === 'stalker') {
+                // Re-fetch xtream/stalker data by reloading channels
                 if (window.app?.channelList) {
                     await window.app.channelList.loadChannels();
                 }
-                alert('Xtream data synced & refreshed!');
+                alert((type === 'stalker' ? 'Stalker portal' : 'Xtream') + ' data synced & refreshed!');
             } else if (type === 'm3u') {
                 // Re-fetch M3U data by reloading channels
                 if (window.app?.channelList) {
@@ -584,7 +592,7 @@ class SourceManager {
             // Keep the placeholder option
             select.innerHTML = '<option value="">Select a source...</option>';
 
-            sources.filter(s => s.type === 'xtream' || s.type === 'm3u').forEach(source => {
+            sources.filter(s => s.type === 'xtream' || s.type === 'stalker' || s.type === 'm3u').forEach(source => {
                 select.innerHTML += `<option value="${source.id}">${source.name} (${source.type})</option>`;
             });
         } catch (err) {
@@ -612,7 +620,7 @@ class SourceManager {
 
             let categoryMap = {};
 
-            if (source.type === 'xtream' || source.type === 'm3u') {
+            if (source.type === 'xtream' || source.type === 'stalker' || source.type === 'm3u') {
                 // Use unified Xtream API endpoints - backend supports both source types
                 // Use includeHidden to show ALL items in the content manager
                 const categories = await API.proxy.xtream.liveCategories(sourceId, { includeHidden: true });

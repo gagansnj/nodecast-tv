@@ -1308,7 +1308,7 @@ class VideoPlayer {
             }
 
             // Fallback: Try to get EPG from Xtream API if available
-            if (channel.sourceType === 'xtream' && channel.streamId) {
+            if ((channel.sourceType === 'xtream' || channel.sourceType === 'stalker') && channel.streamId) {
                 const epgData = await API.proxy.xtream.shortEpg(channel.sourceId, channel.streamId);
                 if (epgData && epgData.epg_listings && epgData.epg_listings.length > 0) {
                     const listings = epgData.epg_listings;

@@ -665,6 +665,7 @@ class ChannelList {
             this.sourceSelect.innerHTML = '<option value="">All Sources</option>';
 
             const xtreamSources = this.sources.filter(s => s.type === 'xtream' && s.enabled);
+            const stalkerSources = this.sources.filter(s => s.type === 'stalker' && s.enabled);
             const m3uSources = this.sources.filter(s => s.type === 'm3u' && s.enabled);
 
             if (xtreamSources.length > 0) {
@@ -673,6 +674,17 @@ class ChannelList {
                 xtreamSources.forEach(s => {
                     const option = document.createElement('option');
                     option.value = `xtream:${s.id}`;
+                    option.textContent = s.name;
+                    optgroup.appendChild(option);
+                });
+                this.sourceSelect.appendChild(optgroup);
+            }
+            if (stalkerSources.length > 0) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = 'Stalker';
+                stalkerSources.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = `stalker:${s.id}`;
                     option.textContent = s.name;
                     optgroup.appendChild(option);
                 });
@@ -718,7 +730,7 @@ class ChannelList {
         try {
             this.container.innerHTML = '<div class="loading"></div>';
 
-            if (type === 'xtream') {
+            if (type === 'xtream' || type === 'stalker') {
                 await this.loadXtreamChannels(parseInt(id));
             } else if (type === 'm3u') {
                 await this.loadM3uChannels(parseInt(id));
@@ -749,7 +761,7 @@ class ChannelList {
         try {
             this.container.innerHTML = '<div class="loading"></div>';
 
-            const xtreamSources = this.sources.filter(s => s.type === 'xtream' && s.enabled);
+            const xtreamSources = this.sources.filter(s => (s.type === 'xtream' || s.type === 'stalker') && s.enabled);
             const m3uSources = this.sources.filter(s => s.type === 'm3u' && s.enabled);
             console.log('[ChannelList] loadAllChannels: xtream=', xtreamSources.length, 'm3u=', m3uSources.length);
 
@@ -780,31 +792,34 @@ class ChannelList {
             this.groups = [];
         }
 
-        const categories = await API.proxy.xtream.liveCategories(sourceId);
+        const source = this.sources.find(s => s.id === sourceId);
+        const prefix = source && source.type ? source.type : 'xtream';
+        const apiCategory = await API.proxy.xtream.liveCategories(sourceId);
+        const categories = apiCategory;
         const streams = await API.proxy.xtream.liveStreams(sourceId);
 
         // Map categories to groups
         const categoryGroups = categories.map(cat => ({
-            id: `xtream_${sourceId}_${cat.category_id}`,
+            id: `${prefix}_${sourceId}_${cat.category_id}`,
             name: cat.category_name,
             sourceId,
-            sourceType: 'xtream'
+            sourceType: prefix
         }));
 
         this.groups = this.groups.concat(categoryGroups);
 
         // Map streams to channels
         const channelList = streams.map(stream => ({
-            id: `xtream_${sourceId}_${stream.stream_id}`,
+            id: `${prefix}_${sourceId}_${stream.stream_id}`,
             streamId: stream.stream_id,
             name: stream.name,
             tvgId: stream.epg_channel_id,
             tvgLogo: stream.stream_icon,
-            groupId: `xtream_${sourceId}_${stream.category_id}`,
+            groupId: `${prefix}_${sourceId}_${stream.category_id}`,
             // Use string comparison to handle type mismatches (number vs string category_id)
             groupTitle: categories.find(c => String(c.category_id) === String(stream.category_id))?.category_name || 'Uncategorized',
             sourceId,
-            sourceType: 'xtream'
+            sourceType: prefix
         }));
 
         this.channels = this.channels.concat(channelList);
@@ -1157,7 +1172,7 @@ class ChannelList {
 
         // Get stream URL
         let streamUrl;
-        if (channel.sourceType === 'xtream') {
+        if (channel.sourceType === 'xtream' || channel.sourceType === 'stalker') {
             // Get stream format from player settings (server-side) or fallback
             const streamFormat = window.app?.player?.settings?.streamFormat || 'm3u8';
             const result = await API.proxy.xtream.getStreamUrl(channel.sourceId, channel.streamId, 'live', streamFormat);

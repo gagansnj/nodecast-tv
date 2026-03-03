@@ -3,6 +3,7 @@ const router = express.Router();
 const { sources } = require('../db');
 const { getDb } = require('../db/sqlite'); // Import SQLite
 const xtreamApi = require('../services/xtreamApi');
+const stalkerApi = require('../services/stalkerApi');
 const epgParser = require('../services/epgParser');
 const cache = require('../services/cache');
 const path = require('path');
@@ -84,14 +85,15 @@ function getStreamsFromDb(sourceId, type, categoryId = null, includeHidden = fal
 router.get('/xtream/:sourceId', async (req, res) => {
     try {
         const source = await sources.getById(req.params.sourceId);
-        if (!source || source.type !== 'xtream') return res.status(404).send('Source not found');
+        if (!source || (source.type !== 'xtream' && source.type !== 'stalker')) return res.status(404).send('Source not found');
 
         // Proxy auth check to upstream to ensure credentials are still valid
 
         const cached = cache.get('xtream', source.id, 'auth', 300000);
         if (cached) return res.json(cached);
 
-        const api = xtreamApi.createFromSource(source);
+        // choose appropriate API class
+        const api = source.type === 'stalker' ? stalkerApi.createFromSource(source) : xtreamApi.createFromSource(source);
         const data = await api.authenticate();
         cache.set('xtream', source.id, 'auth', data);
         res.json(data);
@@ -247,14 +249,23 @@ router.get('/xtream/:sourceId/stream/:streamId/:type', async (req, res) => {
         let streamUrl;
         const baseUrl = source.url.replace(/\/$/, ''); // Remove trailing slash
 
-        if (type === 'live') {
-            streamUrl = `${baseUrl}/live/${source.username}/${source.password}/${streamId}.${container}`;
-        } else if (type === 'movie') {
-            streamUrl = `${baseUrl}/movie/${source.username}/${source.password}/${streamId}.${container}`;
-        } else if (type === 'series') {
-            streamUrl = `${baseUrl}/series/${source.username}/${source.password}/${streamId}.${container}`;
+        if (source.type === 'stalker') {
+            // Stalker portals use MAC in username field and typically expose TV streams under /streaming/tv
+            if (type !== 'live') {
+                return res.status(400).json({ error: 'Stalker source only supports live streams' });
+            }
+            streamUrl = `${baseUrl}/streaming/tv/${source.username}/${streamId}.${container}`;
         } else {
-            return res.status(400).json({ error: 'Invalid stream type' });
+            // xtream logic
+            if (type === 'live') {
+                streamUrl = `${baseUrl}/live/${source.username}/${source.password}/${streamId}.${container}`;
+            } else if (type === 'movie') {
+                streamUrl = `${baseUrl}/movie/${source.username}/${source.password}/${streamId}.${container}`;
+            } else if (type === 'series') {
+                streamUrl = `${baseUrl}/series/${source.username}/${source.password}/${streamId}.${container}`;
+            } else {
+                return res.status(400).json({ error: 'Invalid stream type' });
+            }
         }
 
         res.json({ url: streamUrl });

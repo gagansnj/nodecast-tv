@@ -198,7 +198,7 @@ class EpgGuide {
     async fetchEpgData(forceRefresh = false) {
         // Get ALL sources and filter for EPG-capable types
         const allSources = await API.sources.getAll();
-        const sources = allSources.filter(s => (s.type === 'epg' || s.type === 'xtream') && s.enabled);
+        const sources = allSources.filter(s => (s.type === 'epg' || s.type === 'xtream' || s.type === 'stalker') && s.enabled);
 
         if (sources.length === 0) {
             throw new Error('No EPG sources or Xtream accounts configured');

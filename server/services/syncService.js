@@ -1,6 +1,7 @@
 const { getDb } = require('../db/sqlite');
 const { sources, settings } = require('../db'); // For source config and settings
 const xtreamApi = require('./xtreamApi');
+const stalkerApi = require('./stalkerApi');
 const m3uParser = require('./m3uParser');
 const epgParser = require('./epgParser');
 
@@ -134,6 +135,8 @@ class SyncService {
 
             if (source.type === 'xtream') {
                 await this.syncXtream(source);
+            } else if (source.type === 'stalker') {
+                await this.syncStalker(source);
             } else if (source.type === 'm3u') {
                 await this.syncM3u(source);
             } else if (source.type === 'epg') {
@@ -213,6 +216,24 @@ class SyncService {
         } catch (e) {
             console.warn('[Sync] XMLTV fetch failed, skipping EPG sync for now:', e.message);
         }
+    }
+
+    /**
+     * Stalker Sync Logic (live channels only for now)
+     */
+    async syncStalker(source) {
+        const api = stalkerApi.createFromSource(source);
+        const db = getDb();
+
+        console.log(`[Sync] Fetching Live Categories for Stalker source ${source.name}`);
+        const liveCats = await api.getLiveCategories();
+        await this.saveCategories(source.id, 'live', liveCats);
+
+        console.log(`[Sync] Fetching Live Streams for Stalker source ${source.name}`);
+        const liveStreams = await api.getLiveStreams();
+        await this.saveStreams(source.id, 'live', liveStreams);
+        // Stalker portals generally do not expose VOD/series in a consistent way;
+        // we omit those to keep the implementation simple.
     }
 
     /**

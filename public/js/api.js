@@ -57,7 +57,7 @@ const API = {
         logout: () => API.request('POST', '/auth/logout'),
         me: () => API.request('GET', '/auth/me'),
     },
-    
+
     // Sources
     sources: {
         getAll: () => API.request('GET', '/sources'),
@@ -148,6 +148,13 @@ const API = {
             shortEpg: (sourceId, streamId) => API.request('GET', `/proxy/xtream/${sourceId}/short_epg?stream_id=${streamId}`),
             getStreamUrl: (sourceId, streamId, type = 'live', container = 'm3u8') =>
                 API.request('GET', `/proxy/xtream/${sourceId}/stream/${streamId}/${type}?container=${container}`)
+        },
+        stalker: {
+            auth: (sourceId) => API.request('GET', `/proxy/xtream/${sourceId}/auth`),
+            liveCategories: (sourceId, options = {}) => API.proxy.xtream.liveCategories(sourceId, options),
+            liveStreams: (sourceId, cat, options = {}) => API.proxy.xtream.liveStreams(sourceId, cat, options),
+            getStreamUrl: (sourceId, streamId, type = 'live', container = 'm3u8') =>
+                API.proxy.xtream.getStreamUrl(sourceId, streamId, type, container)
         },
 
         // EPG
