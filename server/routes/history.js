@@ -84,6 +84,22 @@ router.post('/', (req, res) => {
 });
 
 /**
+ * DELETE /api/history
+ * Clears all watch history for the authenticated user
+ */
+router.delete('/', (req, res) => {
+    try {
+        const db = getDb();
+        const userId = req.user.id;
+        db.prepare('DELETE FROM watch_history WHERE user_id = ?').run(userId);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[History] Error clearing history:', err);
+        res.status(500).json({ error: 'Failed to clear history' });
+    }
+});
+
+/**
  * DELETE /api/history/:itemId
  * Removes an item from the user's watch history
  */
