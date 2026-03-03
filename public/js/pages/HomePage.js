@@ -54,6 +54,10 @@ class HomePage {
                 <section class="dashboard-section" id="continue-watching-section">
                     <div class="section-header">
                         <h2>Continue Watching</h2>
+                        <button class="btn-clear-history" id="btn-clear-history" title="Clear all">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14zM6 19a2 2 0 002 2h8a2 2 0 002-2V7H6z"/></svg>
+                            Clear all
+                        </button>
                     </div>
                     <div class="scroll-wrapper">
                         <button class="scroll-arrow scroll-left" aria-label="Scroll left">
@@ -293,36 +297,72 @@ class HomePage {
     renderHistory(items) {
         const list = document.getElementById('continue-watching-list');
         const section = document.getElementById('continue-watching-section');
-
         if (!list || !section) return;
+        if (items.length === 0) { section.classList.add('hidden'); return; }
 
-        if (items.length === 0) {
-            section.classList.add('hidden');
-            return;
-        }
-
+        this._historyItems = items;
         section.classList.remove('hidden');
         list.innerHTML = items.map(item => this.createCard(item)).join('');
 
-        // Attach click listeners
         list.querySelectorAll('.dashboard-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const id = card.dataset.id;
-                const item = items.find(i => i.item_id === id);
-                if (item) {
-                    const type = item.item_type || item.type;
-
-                    // IF it's a series, checking details is better than blind resume
-                    // BUT for "Continue Watching", we ideally want to resume
-
-                    // Prioritize playing directly for resume tiles
-                    this.playItem(item, true); // true for resume
-                }
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-remove-history')) return;
+                const item = this._historyItems.find(i => i.item_id === card.dataset.id);
+                if (item) this.playItem(item, true);
             });
         });
 
-        // Update scroll arrows after content renders
+        list.querySelectorAll('.btn-remove-history').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const card = btn.closest('.dashboard-card');
+                this.removeHistoryItem(card.dataset.id, card);
+            });
+        });
+
+        const clearBtn = document.getElementById('btn-clear-history');
+        if (clearBtn) {
+            const fresh = clearBtn.cloneNode(true);
+            clearBtn.parentNode.replaceChild(fresh, clearBtn);
+            fresh.addEventListener('click', () => this.clearAllHistory());
+        }
+
         this.updateScrollArrows();
+    }
+
+    async removeHistoryItem(itemId, cardEl) {
+        try {
+            await window.API.request('DELETE', `/history/${itemId}`);
+            cardEl.style.transition = 'opacity 0.2s, transform 0.2s';
+            cardEl.style.opacity = '0';
+            cardEl.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                cardEl.remove();
+                this._historyItems = this._historyItems.filter(i => i.item_id !== itemId);
+                if (this._historyItems.length === 0) {
+                    document.getElementById('continue-watching-section')?.classList.add('hidden');
+                }
+                this.updateScrollArrows();
+            }, 200);
+        } catch (err) {
+            console.error('[Dashboard] Failed to remove history item:', err);
+        }
+    }
+
+    async clearAllHistory() {
+        const section = document.getElementById('continue-watching-section');
+        const list = document.getElementById('continue-watching-list');
+        try {
+            await window.API.request('DELETE', '/history');
+            this._historyItems = [];
+            if (list) {
+                list.style.transition = 'opacity 0.2s';
+                list.style.opacity = '0';
+                setTimeout(() => { section?.classList.add('hidden'); list.style.opacity = ''; }, 200);
+            }
+        } catch (err) {
+            console.error('[Dashboard] Failed to clear history:', err);
+        }
     }
 
     navigateToSeries(item) {
@@ -423,7 +463,10 @@ class HomePage {
                     </div>
                     <div class="play-icon-overlay">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
+                        <button class="btn-remove-history" title="Remove" aria-label="Remove from Continue Watching">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                        </div>
                 </div>
                 <div class="card-info">
                     <div class="card-title" title="${item.name || data.title}">${item.name || data.title || 'Unknown Title'}</div>
