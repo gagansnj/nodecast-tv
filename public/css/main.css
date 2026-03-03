@@ -4820,3 +4820,82 @@ kbd {
     max-width: 70px;
   }
 }
+/* =====================================================
+   Continue Watching - Remove & Clear All
+   ===================================================== */
+
+/* "Clear all" button in the Continue Watching section header */
+.btn-clear-history {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.btn-clear-history:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Per-card remove button (shown on hover) */
+.btn-remove-history {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  z-index: 20;
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.dashboard-card:hover .btn-remove-history {
+  opacity: 1;
+}
+
+.btn-remove-history:hover {
+  background: rgba(239, 68, 68, 0.85);
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn-clear-history {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md); color: var(--color-text-muted);
+  font-size: 0.78rem; cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.btn-clear-history:hover { color: var(--color-error); border-color: var(--color-error); background: rgba(239,68,68,0.08); }
+
+.btn-remove-history {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50%; color: rgba(255,255,255,0.7);
+  cursor: pointer; opacity: 0; padding: 0; z-index: 20;
+  transition: opacity var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+  backdrop-filter: blur(4px);
+}
+.dashboard-card:hover .btn-remove-history { opacity: 1; }
+.btn-remove-history:hover { background: rgba(239,68,68,0.85); border-color: transparent; color: #fff; }
