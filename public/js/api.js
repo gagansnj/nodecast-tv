@@ -15,7 +15,7 @@ const API = {
         };
 
         // Add authentication token if available
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
         if (token) {
             options.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -39,6 +39,7 @@ const API = {
             // If unauthorized, redirect to login
             if (response.status === 401) {
                 localStorage.removeItem('authToken');
+                sessionStorage.removeItem('authToken');
                 window.location.href = '/login.html';
                 return;
             }
