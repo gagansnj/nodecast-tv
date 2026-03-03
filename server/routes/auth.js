@@ -120,9 +120,11 @@ router.post('/login', (req, res, next) => {
             return res.status(401).json({ error: info?.message || 'Invalid credentials' });
         }
 
-        // Generate JWT token — indefinite if rememberMe, default expiry otherwise
+        // Generate JWT token — use extended expiry when rememberMe is set
         const rememberMe = req.body.rememberMe === true || req.body.rememberMe === 'true';
-        const token = auth.generateToken(user, rememberMe ? '100y' : undefined);
+        const token = rememberMe
+            ? auth.generateToken(user, '100y')
+            : auth.generateToken(user);
 
         res.json({
             token,

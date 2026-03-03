@@ -32,7 +32,7 @@ async function verifyPassword(password, hash) {
 /**
  * Generate JWT token
  */
-function generateToken(user) {
+function generateToken(user, expiresIn = JWT_EXPIRY) {
     return jwt.sign(
         {
             id: user.id,
@@ -40,7 +40,7 @@ function generateToken(user) {
             role: user.role
         },
         JWT_SECRET,
-        { expiresIn: JWT_EXPIRY }
+        { expiresIn }
     );
 }
 

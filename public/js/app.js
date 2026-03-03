@@ -165,7 +165,7 @@ class App {
     }
 
     async checkAuth() {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
         if (!token) {
             // No token, redirect to login (replace to avoid back button issues)

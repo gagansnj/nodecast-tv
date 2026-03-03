@@ -1,0 +1,37 @@
+diff --git a/public/js/api.js b/public/js/api.js
+index 6228785..607c115 100644
+--- a/public/js/api.js
++++ b/public/js/api.js
+@@ -15,7 +15,7 @@ const API = {
+         };
+ 
+         // Add authentication token if available
+-        const token = localStorage.getItem('authToken');
++        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+         if (token) {
+             options.headers['Authorization'] = `Bearer ${token}`;
+         }
+@@ -39,6 +39,7 @@ const API = {
+             // If unauthorized, redirect to login
+             if (response.status === 401) {
+                 localStorage.removeItem('authToken');
++                sessionStorage.removeItem('authToken');
+                 window.location.href = '/login.html';
+                 return;
+             }
+@@ -48,6 +49,15 @@ const API = {
+         return result;
+     },
+ 
++    // Auth
++    auth: {
++        checkSetup: () => API.request('GET', '/auth/setup-required'),
++        setup: (username, password) => API.request('POST', '/auth/setup', { username, password }),
++        login: (username, password, rememberMe = false) => API.request('POST', '/auth/login', { username, password, rememberMe }),
++        logout: () => API.request('POST', '/auth/logout'),
++        me: () => API.request('GET', '/auth/me'),
++    },
++
+     // Sources
+     sources: {
+         getAll: () => API.request('GET', '/sources'),

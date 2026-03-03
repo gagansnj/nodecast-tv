@@ -49,6 +49,15 @@ const API = {
         return result;
     },
 
+     // Auth
+    auth: {
+        checkSetup: () => API.request('GET', '/auth/setup-required'),
+        setup: (username, password) => API.request('POST', '/auth/setup', { username, password }),
+        login: (username, password, rememberMe = false) => API.request('POST', '/auth/login', { username, password, rememberMe }),
+        logout: () => API.request('POST', '/auth/logout'),
+        me: () => API.request('GET', '/auth/me'),
+    },
+    
     // Sources
     sources: {
         getAll: () => API.request('GET', '/sources'),

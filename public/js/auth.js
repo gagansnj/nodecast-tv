@@ -9,6 +9,9 @@ const Auth = {
      * Initialize auth - check setup status and current user
      */
     async init() {
+        console.log('AUTH INIT CALLED');
+        console.log('localStorage token:', localStorage.getItem('authToken'));
+        console.log('sessionStorage token:', sessionStorage.getItem('authToken'));
         try {
             // Check if setup is required
             const setupStatus = await API.auth.checkSetup();
@@ -18,14 +21,15 @@ const Auth = {
             }
 
             // Check if user is logged in
-            if (API.getToken()) {
+            if (localStorage.getItem('authToken') || sessionStorage.getItem('authToken')) {
                 try {
                     this.currentUser = await API.auth.me();
                     return true;
                 } catch (error) {
                     // Token invalid, clear it
                     console.log('Token invalid, showing login');
-                    API.setToken(null);
+                    localStorage.removeItem('authToken');
+                    sessionStorage.removeItem('authToken');
                     this.showLogin();
                     return false;
                 }
