@@ -31,11 +31,20 @@ class StalkerApi {
 
     async request(action, params = {}) {
         const url = this.buildUrl(action, params);
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Stalker API error: ${response.status} ${response.statusText}`);
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorMsg = `Stalker API error: ${response.status} ${response.statusText} - URL: ${url}`;
+                throw new Error(errorMsg);
+            }
+            return response.json();
+        } catch (err) {
+            if (err.message.includes('Stalker API error')) {
+                throw err;
+            }
+            // Network errors
+            throw new Error(`Stalker API request failed for ${this.baseUrl}: ${err.message}`);
         }
-        return response.json();
     }
 
     // Authentication simply fetches the profile to verify the portal is reachable

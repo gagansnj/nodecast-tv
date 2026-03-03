@@ -114,9 +114,11 @@ class SyncService {
 
         activeSyncs.add(sourceId);
 
+        let source = null; // Declare outside try block so it's accessible in catch
+
         try {
             const db = getDb();
-            const source = await sources.getById(sourceId);
+            source = await sources.getById(sourceId);
 
             if (!source) {
                 throw new Error(`Source ${sourceId} not found`);
@@ -147,7 +149,7 @@ class SyncService {
             console.log(`[Sync] Completed sync for source ${source.name}`);
 
         } catch (err) {
-            console.error(`[Sync] Failed sync for source ${sourceId}:`, err);
+            console.error(`[Sync] Failed sync for source ${sourceId} (${source?.name}):`, err);
             this.updateSyncStatus(sourceId, 'all', 'error', err.message);
         } finally {
             activeSyncs.delete(sourceId);
@@ -225,15 +227,30 @@ class SyncService {
         const api = stalkerApi.createFromSource(source);
         const db = getDb();
 
-        console.log(`[Sync] Fetching Live Categories for Stalker source ${source.name}`);
-        const liveCats = await api.getLiveCategories();
-        await this.saveCategories(source.id, 'live', liveCats);
+        console.log(`[Sync] Stalker source ${source.name} - URL: ${source.url}, MAC: ${source.username}`);
 
-        console.log(`[Sync] Fetching Live Streams for Stalker source ${source.name}`);
-        const liveStreams = await api.getLiveStreams();
-        await this.saveStreams(source.id, 'live', liveStreams);
-        // Stalker portals generally do not expose VOD/series in a consistent way;
-        // we omit those to keep the implementation simple.
+        try {
+            console.log(`[Sync] Fetching Live Categories for Stalker source ${source.name}`);
+            const liveCats = await api.getLiveCategories();
+            await this.saveCategories(source.id, 'live', liveCats);
+
+            console.log(`[Sync] Fetching Live Streams for Stalker source ${source.name}`);
+            const liveStreams = await api.getLiveStreams();
+            await this.saveStreams(source.id, 'live', liveStreams);
+            // Stalker portals generally do not expose VOD/series in a consistent way;
+            // we omit those to keep the implementation simple.
+        } catch (err) {
+            if (err.message.includes('404')) {
+                throw new Error(`Stalker portal at ${source.url} returned 404. Check if the URL is correct and the portal is running. (MAC: ${source.username})`);
+            } else if (err.message.includes('ECONNREFUSED')) {
+                throw new Error(`Cannot connect to Stalker portal at ${source.url}. Check if the URL is accessible.`);
+            } else if (err.message.includes('ENOTFOUND')) {
+                throw new Error(`Cannot resolve hostname for Stalker portal at ${source.url}. Check the URL.`);
+            } else if (err.message.includes('auth') || err.message.includes('credentials')) {
+                throw new Error(`Stalker portal authentication failed. Check the MAC address: ${source.username}`);
+            }
+            throw err;
+        }
     }
 
     /**

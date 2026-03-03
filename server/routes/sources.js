@@ -3,6 +3,7 @@ const router = express.Router();
 const { sources } = require('../db');
 const { getDb } = require('../db/sqlite');
 const xtreamApi = require('../services/xtreamApi');
+const stalkerApi = require('../services/stalkerApi');
 const syncService = require('../services/syncService');
 const m3uParser = require('../services/m3uParser');
 
