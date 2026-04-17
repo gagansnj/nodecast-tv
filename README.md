@@ -64,32 +64,44 @@ nodecast-tv is a modern, web-based IPTV player featuring Live TV, EPG, Movies (V
 
 ### Docker Deployment
 
-You can run nodecast-tv easily using Docker.
+This repository includes a working `Dockerfile` and `docker-compose.yml` for local builds.
 
-1.  Create a `docker-compose.yml` file (or copy the one from this repo):
+#### Build and run with Docker Compose
 
-    ```yaml
-    services:
-      nodecast-tv:
-        build: https://github.com/technomancer702/nodecast-tv.git#main
-        container_name: nodecast-tv
-        ports:
-          - "3000:3000" # Host:Container
-        volumes:
-          - ./data:/app/data
-        restart: unless-stopped
-        environment:
-          - NODE_ENV=production
-          - PORT=3000 # Optional: Internal container port
-    ```
+From the project root:
 
-2.  Run the container:
-    ```bash
-    docker-compose up -d
-    ```
+```powershell
+docker compose build
+docker compose up -d
+```
 
-The application will be available at `http://localhost:3000`.
+Or run a one-step build and start:
 
+```powershell
+docker compose up -d --build
+```
+
+#### Run the image directly
+
+Build the image locally:
+
+```powershell
+docker build -t nodecast-tv .
+```
+
+Start the container:
+
+```powershell
+docker run -d --name nodecast-tv -p 3000:3000 -v ${PWD}/data:/app/data nodecast-tv
+```
+
+If you are using PowerShell on Windows, replace `${PWD}` with the current path, for example:
+
+```powershell
+docker run -d --name nodecast-tv -p 3000:3000 -v C:\Users\gagan\Projects\nodecast_feat_VPN\nodecast-tv\data:/app/data nodecast-tv
+```
+
+The app will be available at `http://localhost:3000`.
 
 ### Hardware Acceleration Setup
 

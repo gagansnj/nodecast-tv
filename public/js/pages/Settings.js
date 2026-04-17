@@ -249,6 +249,19 @@ class SettingsPage {
             this.app.player.settings.userAgentCustom = userAgentCustomInput.value;
             this.app.player.saveSettings();
         });
+
+        const refreshButton = document.getElementById('network-status-refresh');
+        refreshButton?.addEventListener('click', async () => {
+            refreshButton.disabled = true;
+            const originalText = refreshButton.textContent;
+            refreshButton.textContent = 'Refreshing...';
+            try {
+                await this.updateNetworkStatus();
+            } finally {
+                refreshButton.disabled = false;
+                refreshButton.textContent = originalText;
+            }
+        });
     }
 
     /**
@@ -588,6 +601,9 @@ class SettingsPage {
                 }
             }
             if (userAgentCustomInput) userAgentCustomInput.value = s.userAgentCustom || '';
+
+            // Update the server network status display
+            this.updateNetworkStatus();
         }
 
         // Update EPG last refreshed display
@@ -638,6 +654,38 @@ class SettingsPage {
             console.error('Error fetching sync status:', err);
             display.textContent = 'Unknown';
             display.title = 'Could not fetch sync status';
+        }
+    }
+
+    async updateNetworkStatus() {
+        const ipEl = document.getElementById('network-external-ip');
+        const ispEl = document.getElementById('network-isp');
+        const statusEl = document.getElementById('network-status');
+        const lastCheckedEl = document.getElementById('network-last-checked');
+
+        if (!ipEl || !ispEl || !statusEl || !lastCheckedEl) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/settings/network-status');
+            if (!response.ok) throw new Error(`Failed to fetch network status (${response.status})`);
+
+            const data = await response.json();
+            ipEl.textContent = data.externalIp || 'Unknown';
+            ispEl.textContent = data.isp || 'Unknown';
+            statusEl.textContent = data.serverOnline ? 'Online' : 'Offline';
+            lastCheckedEl.textContent = data.lastChecked ? new Date(data.lastChecked).toLocaleString() : 'Unknown';
+            statusEl.className = data.serverOnline ? 'status-online' : 'status-offline';
+            statusEl.title = data.serverOnline ? 'Server network reachable' : 'Server network lookup failed';
+        } catch (err) {
+            console.error('Error fetching network status:', err);
+            ipEl.textContent = 'Unknown';
+            ispEl.textContent = 'Unknown';
+            statusEl.textContent = 'Offline';
+            lastCheckedEl.textContent = 'Unavailable';
+            statusEl.className = 'status-offline';
+            statusEl.title = err.message;
         }
     }
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { settings, getDefaultSettings } = require('../db');
 const syncService = require('../services/syncService');
+const networkInfo = require('../services/networkInfo');
 
 /**
  * Get all settings
@@ -88,6 +89,20 @@ router.get('/hw-info', async (req, res) => {
         res.json(capabilities);
     } catch (err) {
         console.error('Error getting hardware info:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Get current external IP/ISP network status
+ * GET /api/settings/network-status
+ */
+router.get('/network-status', async (req, res) => {
+    try {
+        const networkStatus = await networkInfo.getNetworkStatus();
+        res.json(networkStatus);
+    } catch (err) {
+        console.error('Error getting network status:', err);
         res.status(500).json({ error: err.message });
     }
 });
