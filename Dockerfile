@@ -46,6 +46,9 @@ RUN npm ci --only=production
 # Copy application files
 COPY . .
 
+# Cache-bust static assets by appending a timestamp
+RUN sed -i "s/?v=[0-9]*/?v=$(date +%s)/g" public/index.html
+
 # Create data and cache directories
 RUN mkdir -p /app/data /app/transcode-cache && chmod 777 /app/transcode-cache
 
