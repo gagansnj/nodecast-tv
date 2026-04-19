@@ -726,6 +726,22 @@
                     streams don't play directly.</span>
                 </div>
               </div>
+              <div class="setting-item">
+                <div class="setting-info" style="flex: 1;">
+                  <span class="setting-label">Server Network Status</span>
+                  <span class="setting-hint">External IP and ISP reported by the server.</span>
+                </div>
+                <div class="setting-info" style="flex: 1; min-width: 280px;">
+                  <div style="margin-bottom: 6px;"><strong>IP:</strong> <span id="network-external-ip">Loading...</span> <button type="button" class="copy-btn" id="copy-ip-btn" title="Copy IP address" style="margin-left: 8px; padding: 2px 6px; border: none; background: none; cursor: pointer;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button></div>
+                  <div style="margin-bottom: 6px;"><strong>ISP:</strong> <span id="network-isp">Loading...</span></div>
+                  <div style="margin-bottom: 6px;"><strong>Status:</strong> <span id="network-status">Loading...</span></div>
+                  <div style="margin-bottom: 12px;"><strong>Last checked:</strong> <span id="network-last-checked">Loading...</span></div>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn btn-sm btn-secondary" id="network-status-refresh">Refresh</button>
+                    <span class="hint" style="margin: 0;">Refresh external IP/ISP lookup.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1106,7 +1122,7 @@
   <script src="/js/pages/Guide.js?v=2"></script>
   <script src="/js/pages/MoviesPage.js?v=4"></script>
   <script src="/js/pages/SeriesPage.js?v=1"></script>
-  <script src="/js/pages/Settings.js?v=2"></script>
+  <script src="/js/pages/Settings.js?v=3"></script>
   <script src="/js/pages/WatchPage.js?v=1"></script>
   <script src="/js/app.js?v=4"></script>
   <script>

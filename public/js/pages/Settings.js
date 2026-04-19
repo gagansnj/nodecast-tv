@@ -90,6 +90,88 @@ class SettingsPage {
             });
         }
 
+        // Network status refresh button
+        const refreshButton = document.getElementById('network-status-refresh');
+        console.log('[Settings] Network status refresh button found:', !!refreshButton);
+        if (refreshButton) {
+            console.log('[Settings] Adding click listener to refresh button');
+            refreshButton.addEventListener('click', async () => {
+                console.log('[Settings] Refresh button clicked');
+                refreshButton.disabled = true;
+                const originalText = refreshButton.textContent;
+                refreshButton.textContent = 'Refreshing...';
+                try {
+                    await this.updateNetworkStatus();
+                } finally {
+                    refreshButton.disabled = false;
+                    refreshButton.textContent = originalText;
+                }
+            });
+        } else {
+            console.warn('[Settings] Network status refresh button not found in DOM');
+        }
+
+        // Copy IP address button
+        const copyIpButton = document.getElementById('copy-ip-btn');
+        if (copyIpButton) {
+            copyIpButton.addEventListener('click', async () => {
+                const ipElement = document.getElementById('network-external-ip');
+                const ipAddress = ipElement?.textContent?.trim();
+                
+                if (ipAddress && ipAddress !== 'Loading...' && ipAddress !== 'Unknown') {
+                    const showCopiedFeedback = () => {
+                        const originalIcon = copyIpButton.innerHTML;
+                        copyIpButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                        copyIpButton.style.color = '#10b981';
+                        copyIpButton.title = 'Copied!';
+
+                        setTimeout(() => {
+                            copyIpButton.innerHTML = originalIcon;
+                            copyIpButton.style.color = '';
+                            copyIpButton.title = 'Copy IP address';
+                        }, 2000);
+                    };
+
+                    const fallbackCopy = () => {
+                        const textArea = document.createElement('textarea');
+                        textArea.value = ipAddress;
+                        textArea.style.position = 'fixed';
+                        textArea.style.left = '-9999px';
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+
+                        let success = false;
+                        try {
+                            success = document.execCommand('copy');
+                        } catch (err) {
+                            console.warn('[Settings] execCommand copy fallback failed:', err);
+                        }
+                        document.body.removeChild(textArea);
+                        return success;
+                    };
+
+                    try {
+                        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                            await navigator.clipboard.writeText(ipAddress);
+                        } else {
+                            const copied = fallbackCopy();
+                            if (!copied) throw new Error('Clipboard API unavailable');
+                        }
+                        showCopiedFeedback();
+                    } catch (err) {
+                        console.error('[Settings] Failed to copy IP address:', err);
+                        const copied = fallbackCopy();
+                        if (copied) {
+                            showCopiedFeedback();
+                        } else {
+                            alert('Unable to copy IP address to clipboard in this browser.');
+                        }
+                    }
+                }
+            });
+        }
+
         // Update last refreshed display
         this.updateEpgLastRefreshed();
     }
@@ -588,6 +670,9 @@ class SettingsPage {
                 }
             }
             if (userAgentCustomInput) userAgentCustomInput.value = s.userAgentCustom || '';
+
+            // Update the server network status display
+            this.updateNetworkStatus();
         }
 
         // Update EPG last refreshed display
@@ -638,6 +723,58 @@ class SettingsPage {
             console.error('Error fetching sync status:', err);
             display.textContent = 'Unknown';
             display.title = 'Could not fetch sync status';
+        }
+    }
+
+    async updateNetworkStatus() {
+        console.log('[Settings] updateNetworkStatus called');
+        const ipEl = document.getElementById('network-external-ip');
+        const ispEl = document.getElementById('network-isp');
+        const statusEl = document.getElementById('network-status');
+        const lastCheckedEl = document.getElementById('network-last-checked');
+
+        console.log('[Settings] Network status elements found:', { ipEl: !!ipEl, ispEl: !!ispEl, statusEl: !!statusEl, lastCheckedEl: !!lastCheckedEl });
+
+        if (!ipEl || !ispEl || !statusEl || !lastCheckedEl) {
+            console.warn('[Settings] Missing network status DOM elements, returning early');
+            return;
+        }
+
+        try {
+            console.log('[Settings] Fetching /api/settings/network-status');
+            const response = await fetch('/api/settings/network-status');
+            if (!response.ok) throw new Error(`Failed to fetch network status (${response.status})`);
+
+            const data = await response.json();
+            console.log('[Settings] Network status response:', data);
+            ipEl.textContent = data.externalIp || 'Unknown';
+            ispEl.textContent = data.isp || 'Unknown';
+            statusEl.textContent = data.serverOnline ? 'Online' : 'Offline';
+            lastCheckedEl.textContent = data.lastChecked ? new Date(data.lastChecked).toLocaleString() : 'Unknown';
+            statusEl.className = data.serverOnline ? 'status-online' : 'status-offline';
+            statusEl.title = data.serverOnline ? 'Server network reachable' : 'Server network lookup failed';
+            
+            console.log('[Settings] DOM updates applied:', {
+                ip: ipEl.textContent,
+                isp: ispEl.textContent,
+                status: statusEl.textContent,
+                lastChecked: lastCheckedEl.textContent
+            });
+        } catch (err) {
+            console.error('[Settings] Error fetching network status:', err);
+            ipEl.textContent = 'Unknown';
+            ispEl.textContent = 'Unknown';
+            statusEl.textContent = 'Offline';
+            lastCheckedEl.textContent = 'Unavailable';
+            statusEl.className = 'status-offline';
+            statusEl.title = err.message;
+            
+            console.log('[Settings] Error DOM updates applied:', {
+                ip: ipEl.textContent,
+                isp: ispEl.textContent,
+                status: statusEl.textContent,
+                lastChecked: lastCheckedEl.textContent
+            });
         }
     }
 
